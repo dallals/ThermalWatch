@@ -12,6 +12,10 @@ struct ThermalWatchApp: App {
         }
         .menuBarExtraStyle(.window)
 
+        Window("ThermalWatch", id: "main") {
+            MainWindowView(model: model)
+        }
+
         Settings {
             SettingsView(model: model)
         }

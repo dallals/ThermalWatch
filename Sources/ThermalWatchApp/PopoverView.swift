@@ -4,6 +4,7 @@ import SwiftUI
 import ThermalCore
 
 struct PopoverView: View {
+    @Environment(\.openWindow) private var openWindow
     let model: AppModel
 
     var body: some View {
@@ -36,6 +37,10 @@ struct PopoverView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
+                Button("Open window") {
+                    openWindow(id: "main")
+                    NSApp.activate()
+                }
                 SettingsLink { Text("Settings") }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
