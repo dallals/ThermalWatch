@@ -88,3 +88,29 @@ private func full(_ t: Double) -> Sample {
 @Test func badPathThrows() {
     #expect(throws: StoreError.self) { try HistoryStore(path: "/nonexistent-dir-\(UUID().uuidString)/h.sqlite") }
 }
+
+@Test func concurrentCallsAreAtomic() async throws {
+    let store = try HistoryStore(path: tempPath())
+    let batches = 20, perBatch = 5
+    let ids = try await withThrowingTaskGroup(of: Int64?.self) { group in
+        for b in 0..<batches {
+            group.addTask {
+                let base = Double(1000 + b * perBatch)
+                try store.insert((0..<perBatch).map { full(base + Double($0)) })
+                try store.prune(olderThan: 0)
+                _ = try store.samples(from: 0, to: 100_000)
+                _ = try store.throttledSeconds(from: 0, to: 100_000)
+                return nil
+            }
+            group.addTask {
+                try store.insert(LoadTestResult(id: nil, startedAt: Double(b), kind: .cpu, plannedSeconds: 1, ranSeconds: 1, secondsToThrottle: nil, steadyDrop: [:], peakCPUTempC: nil, peakGPUTempC: nil, startWatts: nil, endWatts: nil, stopReason: .finished, note: ""))
+            }
+        }
+        var out: [Int64] = []
+        for try await id in group { if let id { out.append(id) } }
+        return out
+    }
+    #expect(Set(ids).count == batches)
+    #expect(try store.samples(from: 0, to: 100_000).count == batches * perBatch)
+    #expect(try store.loadTests().count == batches)
+}

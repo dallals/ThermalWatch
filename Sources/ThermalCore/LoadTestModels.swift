@@ -24,6 +24,8 @@ public enum StopReason: String, Codable, Sendable {
     }
 }
 
+/// Stored as JSON. `HistoryStore.loadTests()` skips rows that fail to decode, so any field added later
+/// must be optional to keep older rows readable.
 public struct LoadTestResult: Codable, Equatable, Sendable, Identifiable {
     public var id: Int64?
     public var startedAt: Double

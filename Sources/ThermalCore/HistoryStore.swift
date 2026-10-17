@@ -17,9 +17,11 @@ public protocol HistoryWriting: AnyObject {
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-/// Serialized SQLite connection (SQLITE_OPEN_FULLMUTEX), safe to call from any thread.
+/// SQLite connection shared across threads/tasks. Every public method holds one lock for its whole body,
+/// so each public call (including its transaction) is atomic with respect to the others.
 public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     private var db: OpaquePointer?
+    private let lock = NSLock()
 
     public init(path: String) throws {
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
@@ -57,6 +59,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     // MARK: Samples
 
     public func insert(_ samples: [Sample]) throws {
+        lock.lock(); defer { lock.unlock() }
         guard !samples.isEmpty else { return }
         try transaction {
             let st = try prepare("INSERT OR REPLACE INTO samples VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -88,6 +91,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func samples(from start: Double, to end: Double) throws -> [Sample] {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("SELECT * FROM samples WHERE ts >= ? AND ts <= ? ORDER BY ts")
         defer { sqlite3_finalize(st) }
         bindDouble(st, 1, start)
@@ -117,6 +121,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func throttledSeconds(from start: Double, to end: Double) throws -> Double {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("SELECT COUNT(*) FROM samples WHERE ts >= ? AND ts <= ? AND state = 2")
         defer { sqlite3_finalize(st) }
         bindDouble(st, 1, start)
@@ -125,6 +130,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func maxBusyMHz(since: Double, busyAbove: Double) throws -> [Cluster: Double] {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("""
             SELECT MAX(CASE WHEN super_busy > ?2 THEN super_mhz END),
                    MAX(CASE WHEN perf_busy > ?2 THEN perf_mhz END),
@@ -146,6 +152,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     // MARK: Events
 
     public func insert(_ e: ThrottleEvent) throws {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?)")
         defer { sqlite3_finalize(st) }
         bindDouble(st, 1, e.start)
@@ -158,6 +165,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func events(from start: Double, to end: Double) throws -> [ThrottleEvent] {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("SELECT * FROM events WHERE end >= ? AND start <= ? ORDER BY start DESC")
         defer { sqlite3_finalize(st) }
         bindDouble(st, 1, start)
@@ -172,6 +180,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func prune(olderThan cutoff: Double) throws {
+        lock.lock(); defer { lock.unlock() }
         try transaction {
             let a = try prepare("DELETE FROM samples WHERE ts < ?")
             defer { sqlite3_finalize(a) }
@@ -187,6 +196,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     // MARK: Load tests
 
     public func insert(_ result: LoadTestResult) throws -> Int64 {
+        lock.lock(); defer { lock.unlock() }
         var copy = result
         copy.id = nil
         let json = String(decoding: try JSONEncoder().encode(copy), as: UTF8.self)
@@ -199,6 +209,7 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
     }
 
     public func loadTests() throws -> [LoadTestResult] {
+        lock.lock(); defer { lock.unlock() }
         let st = try prepare("SELECT id, json FROM load_tests ORDER BY started DESC, id DESC")
         defer { sqlite3_finalize(st) }
         var out: [LoadTestResult] = []
