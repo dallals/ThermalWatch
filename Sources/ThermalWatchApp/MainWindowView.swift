@@ -55,12 +55,14 @@ struct MainWindowView: View {
         .padding(14)
         .frame(minWidth: 1000, minHeight: 760)
         .task(id: "\(data.range.rawValue)-\(Int(data.endOffset))") {
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            if Task.isCancelled { return }
             await data.reload(model: model)
         }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
-                if data.endOffset < 1 { await data.reload(model: model) }
+                if data.endOffset < 1, !data.isLoading { await data.reload(model: model) }
             }
         }
     }
@@ -74,6 +76,14 @@ struct MainWindowView: View {
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.nameFieldStringValue = "thermalwatch-\(Int(data.end)).csv"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? CSVExport.csv(data.samples).write(to: url, atomically: true, encoding: .utf8)
+        do {
+            try CSVExport.csv(data.samples).write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not export CSV"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
     }
 }

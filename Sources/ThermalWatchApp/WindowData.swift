@@ -12,10 +12,16 @@ final class WindowData {
     private(set) var events: [ThrottleEvent] = []
     private(set) var built = ChartBuilder.Built.empty
     private(set) var end: Double = Date().timeIntervalSince1970
+    private(set) var isLoading = false
+    @ObservationIgnored private var generation = 0
 
     var domain: ClosedRange<Double> { (end - range.rawValue)...end }
 
     func reload(model: AppModel) async {
+        generation += 1
+        let mine = generation
+        isLoading = true
+        defer { if mine == generation { isLoading = false } }
         let now = Date().timeIntervalSince1970
         let end = now - endOffset
         let start = end - range.rawValue
@@ -27,13 +33,15 @@ final class WindowData {
         let store = model.store
         let openEvent = model.monitor.openEvent
 
-        let result = await Task.detached(priority: .userInitiated) { () -> ([Sample], [ThrottleEvent], ChartBuilder.Built) in
+        let work = Task.detached(priority: .userInitiated) { () -> ([Sample], [ThrottleEvent], ChartBuilder.Built) in
             let samples = live ?? ((try? store?.samples(from: start, to: end)) ?? [])
             var events = (try? store?.events(from: start, to: end)) ?? []
             if let openEvent, openEvent.end >= start { events.insert(openEvent, at: 0) }
             return (samples, events, ChartBuilder.build(samples, bucket: bucket, peaks: peaks))
-        }.value
+        }
+        let result = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
 
+        guard mine == generation, !Task.isCancelled else { return }
         samples = result.0
         events = result.1
         built = result.2

@@ -15,6 +15,7 @@ struct ThermalWatchApp: App {
         Window("ThermalWatch", id: "main") {
             MainWindowView(model: model)
         }
+        .defaultLaunchBehavior(.suppressed)
 
         Settings {
             SettingsView(model: model)
