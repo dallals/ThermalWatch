@@ -22,6 +22,7 @@ final class LoadTestModel {
 
     @ObservationIgnored private var cpu: CPULoad?
     @ObservationIgnored private var gpu: GPULoad?
+    @ObservationIgnored private var deadline: Task<Void, Never>?
     @ObservationIgnored private let store: HistoryStore?
     @ObservationIgnored private let peaks: @MainActor () -> [Cluster: Double]
 
@@ -36,22 +37,33 @@ final class LoadTestModel {
     func start(now: Double = Date().timeIntervalSince1970) {
         guard !isRunning else { return }
         error = nil
-        run = LoadTestRun(kind: kind, plannedSeconds: Double(minutes * 60), startedAt: now)
+        var gpuLoad: GPULoad?
+        if kind != .cpu {
+            guard let load = GPULoad() else {
+                error = "Metal is unavailable, so the GPU load cannot run."
+                return
+            }
+            gpuLoad = load
+        }
+        let planned = Double(minutes * 60)
+        run = LoadTestRun(kind: kind, plannedSeconds: planned, startedAt: now)
         if kind != .gpu {
             let load = CPULoad()
             load.start()
             cpu = load
         }
-        if kind != .cpu {
-            guard let load = GPULoad() else {
-                error = "Metal is unavailable, so the GPU load cannot run."
-                stop(.userStopped)
-                return
-            }
-            load.start()
-            gpu = load
+        if let gpuLoad {
+            gpuLoad.start()
+            gpu = gpuLoad
         }
         phase = .running
+        // Backstop: end the burn even if the sampler stalls and no samples arrive.
+        deadline?.cancel()
+        deadline = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64((planned + 2) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            if self?.isRunning == true { self?.stop(.finished) }
+        }
     }
 
     /// Called for every Monitor sample.
@@ -63,6 +75,8 @@ final class LoadTestModel {
     }
 
     func stop(_ reason: StopReason, now: Double = Date().timeIntervalSince1970) {
+        deadline?.cancel()
+        deadline = nil
         cpu?.stop()
         gpu?.stop()
         cpu = nil

@@ -9,7 +9,7 @@ struct LoadTestView: View {
         VStack(alignment: .leading, spacing: 12) {
             switch test.phase {
             case .idle:
-                LoadTestSetup(test: test, omlxBusy: model.sensors.omlxBusy)
+                LoadTestSetup(test: test, isOmlxBusy: { model.sensors.omlxBusy })
             case .running:
                 running(test)
             case .finished(let result):
@@ -64,8 +64,8 @@ struct LoadTestView: View {
 
 private struct LoadTestSetup: View {
     @Bindable var test: LoadTestModel
-    let omlxBusy: Bool
-    @State private var confirmedWhileBusy = false
+    let isOmlxBusy: () -> Bool
+    @State private var warnBusy = false
 
     var body: some View {
         Picker("Load", selection: $test.kind) {
@@ -77,15 +77,21 @@ private struct LoadTestSetup: View {
         }
         .pickerStyle(.segmented)
         TextField("Note (e.g. desk, cooling stand, Low Power mode)", text: $test.note)
-        if omlxBusy && !confirmedWhileBusy {
+        if warnBusy {
             Text("Kona is generating — results will be skewed and the reply will slow down.")
                 .foregroundStyle(.orange)
-            Button("Run anyway") {
-                confirmedWhileBusy = true
-                test.start()
+            HStack {
+                Button("Run anyway") {
+                    warnBusy = false
+                    test.start()
+                }
+                Button("Cancel") { warnBusy = false }
             }
         } else {
-            Button("Start") { test.start() }.keyboardShortcut(.defaultAction)
+            Button("Start") {
+                if isOmlxBusy() { warnBusy = true } else { test.start() }
+            }
+            .keyboardShortcut(.defaultAction)
         }
     }
 }
