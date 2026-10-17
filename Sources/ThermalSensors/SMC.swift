@@ -118,8 +118,8 @@ public final class SMCSource {
         r.cpuTempC = SMCKeys.hottest(values(cpuKeys), where: SMCKeys.isCPUDie)
         r.gpuTempC = SMCKeys.hottest(values(gpuKeys), where: SMCKeys.isGPUDie)
         r.fanRPM = (0..<fanCount).compactMap { client.read("F\($0)Ac") }
-        r.cpuWatts = client.read("PHPC")
-        r.systemWatts = client.read("PSTR")
+        r.cpuWatts = client.read("PHPC").flatMap(SMCKeys.power)
+        r.systemWatts = client.read("PSTR").flatMap(SMCKeys.power)
         return r
     }
 }

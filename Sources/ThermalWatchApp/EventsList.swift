@@ -5,7 +5,11 @@ struct EventsList: View {
     let events: [ThrottleEvent]
     let onSelect: (ThrottleEvent) -> Void
 
+    /// Events shorter than this are brief flickers of the GPU thermal cap; they stay shaded on the charts.
+    static let minimumSeconds = 3.0
+
     var body: some View {
+        let events = events.filter { $0.duration >= Self.minimumSeconds }
         VStack(alignment: .leading, spacing: 6) {
             Text("Throttle events").font(.headline)
             if events.isEmpty {

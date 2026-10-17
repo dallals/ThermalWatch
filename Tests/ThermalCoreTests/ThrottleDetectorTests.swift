@@ -86,3 +86,22 @@ private func run(_ samples: [Sample], peaks: [Cluster: Double] = peaks) -> [Clas
     p.replaceObserved([.gpu: 1500])
     #expect(p.peaks() == [.performance: 4380, .gpu: 1500])
 }
+
+private func gpu(_ t: Double, mhz: Double, capped: Bool) -> Sample {
+    var s = Sample(timestamp: t, pressure: 0)
+    s.gpuMHz = mhz
+    s.gpuBusy = 0.9
+    s.gpuThermalCapped = capped
+    return s
+}
+
+@Test func lowGPUClockWithoutThermalCapIsCool() {
+    // The GPU idles at its lowest state between bursts of an LLM reply while still counted as busy.
+    let out = run((0..<8).map { gpu(Double($0), mhz: 338, capped: false) }, peaks: [.gpu: 1620])
+    #expect(out.allSatisfy { $0 == Classification(state: .cool, clockLimited: false) })
+}
+
+@Test func lowGPUClockWithThermalCapIsClockLimited() {
+    let out = run((0..<8).map { gpu(Double($0), mhz: 562, capped: true) }, peaks: [.gpu: 1620])
+    #expect(out.allSatisfy { $0 == Classification(state: .throttled, clockLimited: true) })
+}

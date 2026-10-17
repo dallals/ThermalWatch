@@ -85,4 +85,11 @@ public struct Sample: Codable, Equatable, Sendable {
         case .gpu: gpuBusy
         }
     }
+
+    /// Whether this cluster's clock says anything about heat in this sample. The GPU's clock follows demand
+    /// (it sits at its lowest state between bursts of work while still counted as busy), so a low GPU clock
+    /// only counts while the GPU thermal cap is on.
+    public func clockReflectsHeat(_ cluster: Cluster) -> Bool {
+        cluster != .gpu || gpuThermalCapped == true
+    }
 }

@@ -65,7 +65,7 @@ struct PopoverView: View {
             }
         }
         .padding(12)
-        .frame(width: 330)
+        .frame(width: 390)
     }
 }
 
@@ -94,7 +94,7 @@ private struct Sparkline: View {
 
     private func share(_ s: Sample) -> Double? {
         var lowest: Double?
-        for c in Cluster.allCases {
+        for c in Cluster.allCases where s.clockReflectsHeat(c) {
             guard let mhz = s.mhz(c), let busy = s.busy(c), busy > Thresholds.standard.busy,
                   let peak = peaks[c], peak > 0 else { continue }
             lowest = min(lowest ?? .infinity, mhz / peak * 100)
@@ -117,6 +117,7 @@ private struct Sparkline: View {
                 }
             }
         }
+        .chartXScale(domain: .automatic(includesZero: false))
         .chartYScale(domain: 0...110)
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)

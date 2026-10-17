@@ -121,6 +121,9 @@ public enum SMCKeys {
     public static func isCPUDie(_ key: String) -> Bool { key.hasPrefix("Tp") || key.hasPrefix("Tm") }
     public static func isGPUDie(_ key: String) -> Bool { key.hasPrefix("Tg") }
 
+    /// Power keys occasionally report a small negative value; a draw can't be negative, so drop it.
+    public static func power(_ watts: Double) -> Double? { watts >= 0 ? watts : nil }
+
     /// Hottest plausible (0–130 °C) reading among keys matching `filter`.
     public static func hottest(_ readings: [String: Double], where filter: (String) -> Bool) -> Double? {
         readings.filter { filter($0.key) && $0.value > 0 && $0.value < 130 }.values.max()
@@ -129,7 +132,7 @@ public enum SMCKeys {
 
 public enum Energy {
     public static func watts(value: Int64, unit: String, seconds: Double) -> Double? {
-        guard seconds > 0 else { return nil }
+        guard seconds > 0, value >= 0 else { return nil }
         let scale: Double
         switch unit.trimmingCharacters(in: .whitespaces) {
         case "nJ": scale = 1e-9

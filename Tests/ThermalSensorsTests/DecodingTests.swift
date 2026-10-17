@@ -110,3 +110,10 @@ private func st(_ pairs: [(String, Int64)]) -> [StateResidency] {
     #expect(Residency.tableIndex("V-2P3") == nil)
     #expect(Residency.tableIndex("P3") == 3)
 }
+
+@Test func negativePowerReadingsAreDropped() {
+    #expect(SMCKeys.power(-3.8) == nil)
+    #expect(SMCKeys.power(0) == 0)
+    #expect(SMCKeys.power(42.5) == 42.5)
+    #expect(Energy.watts(value: -1000, unit: "mJ", seconds: 1) == nil)
+}

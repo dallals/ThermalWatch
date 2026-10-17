@@ -77,7 +77,7 @@ public enum AlertText {
         case .sustainedClockLimit:
             var text = "Clocks held down for 30 s."
             var limited: [(Cluster, Double)] = []
-            for c in Cluster.allCases {
+            for c in Cluster.allCases where s.clockReflectsHeat(c) {
                 guard let mhz = s.mhz(c), let busy = s.busy(c), busy > Thresholds.standard.busy,
                       let peak = peaks[c], peak > 0 else { continue }
                 if mhz < peak * (1 - Thresholds.standard.throttleDrop) { limited.append((c, mhz / peak)) }

@@ -43,7 +43,7 @@ public struct EventBuilder: Sendable {
 
     public static func clockDrop(_ s: Sample, peaks: [Cluster: Double], busyThreshold: Double) -> Double {
         var worst = 0.0
-        for cluster in Cluster.allCases {
+        for cluster in Cluster.allCases where s.clockReflectsHeat(cluster) {
             guard let mhz = s.mhz(cluster), let busy = s.busy(cluster), busy > busyThreshold,
                   let peak = peaks[cluster], peak > 0 else { continue }
             worst = max(worst, 1 - mhz / peak)

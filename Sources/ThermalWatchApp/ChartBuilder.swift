@@ -30,11 +30,13 @@ enum ChartBuilder {
         func series(_ name: String, _ color: Color, _ value: (Sample) -> Double?) -> ChartSeries {
             ChartSeries(name: name, color: color, points: Downsampler.series(samples, bucket: bucket, value: value))
         }
+        // History recorded before negative readings were filtered can still hold one.
+        func watts(_ value: Double?) -> Double? { value.flatMap { $0 >= 0 ? $0 : nil } }
         return Built(
             clocks: [series("Super", .purple, percent(.superCores)), series("Perf", .blue, percent(.performance)), series("GPU", .teal, percent(.gpu))],
             temps: [series("CPU", .red, { $0.cpuTempC }), series("GPU", .orange, { $0.gpuTempC })],
             fans: [series("Fans", .gray, { $0.fanRPM.max() })],
-            power: [series("CPU", .red, { $0.cpuWatts }), series("GPU", .orange, { $0.gpuWatts }), series("System", .gray, { $0.systemWatts })],
+            power: [series("CPU", .red, { watts($0.cpuWatts) }), series("GPU", .orange, { watts($0.gpuWatts) }), series("System", .gray, { watts($0.systemWatts) })],
             tokens: [series("oMLX", .green, { $0.tokensPerSec })],
             bands: Downsampler.bands(samples)
         )

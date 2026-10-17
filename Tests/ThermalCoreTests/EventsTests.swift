@@ -71,3 +71,13 @@ private func s(_ t: Double, throttled: Bool, pressure: Int = 1, perf: Double? = 
     let second = b.flush()
     #expect(second == nil)
 }
+
+@Test func gpuClockDropCountsOnlyWhileThermallyCapped() {
+    var x = Sample(timestamp: 0, pressure: 0)
+    x.gpuMHz = 400
+    x.gpuBusy = 0.9
+    x.gpuThermalCapped = false
+    #expect(EventBuilder.clockDrop(x, peaks: peaks, busyThreshold: 0.6) == 0)
+    x.gpuThermalCapped = true
+    #expect(EventBuilder.clockDrop(x, peaks: peaks, busyThreshold: 0.6) == 0.75)
+}
