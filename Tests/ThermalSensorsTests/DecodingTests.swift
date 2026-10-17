@@ -97,3 +97,16 @@ private func st(_ pairs: [(String, Int64)]) -> [StateResidency] {
     #expect(Energy.watts(value: 5, unit: "bogus", seconds: 1) == nil)
     #expect(Energy.watts(value: 5, unit: "mJ", seconds: 0) == nil)
 }
+
+@Test func smcNonFiniteFloatIsNil() {
+    let nan = Float.nan.bitPattern, inf = Float.infinity.bitPattern
+    func le(_ v: UInt32) -> [UInt8] { [UInt8(v & 0xFF), UInt8((v >> 8) & 0xFF), UInt8((v >> 16) & 0xFF), UInt8(v >> 24)] }
+    #expect(SMCValue.decode(type: "flt ", bytes: le(nan)) == nil)
+    #expect(SMCValue.decode(type: "flt ", bytes: le(inf)) == nil)
+}
+
+@Test func negativeResidencyIndexIsNil() {
+    #expect(Residency.tableIndex("P-1") == nil)
+    #expect(Residency.tableIndex("V-2P3") == nil)
+    #expect(Residency.tableIndex("P3") == 3)
+}

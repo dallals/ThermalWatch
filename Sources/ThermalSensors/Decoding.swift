@@ -20,9 +20,9 @@ public enum Residency {
     /// "V12P7" -> 12 (CPU), "P3" -> 3 (GPU); DOWN/IDLE/OFF/NO_CLTM/NON_IDLE -> nil.
     public static func tableIndex(_ name: String) -> Int? {
         if name.hasPrefix("V"), let p = name.firstIndex(of: "P") {
-            return Int(name[name.index(after: name.startIndex)..<p])
+            return Int(name[name.index(after: name.startIndex)..<p]).flatMap { $0 >= 0 ? $0 : nil }
         }
-        if name.hasPrefix("P") { return Int(name.dropFirst()) }
+        if name.hasPrefix("P") { return Int(name.dropFirst()).flatMap { $0 >= 0 ? $0 : nil } }
         return nil
     }
 
@@ -78,6 +78,11 @@ public enum FrequencyTable {
 
 public enum SMCValue {
     public static func decode(type: String, bytes b: [UInt8]) -> Double? {
+        guard let value = decodeRaw(type: type, bytes: b), value.isFinite else { return nil }
+        return value
+    }
+
+    private static func decodeRaw(type: String, bytes b: [UInt8]) -> Double? {
         switch type {
         case "flt ":
             guard b.count >= 4 else { return nil }

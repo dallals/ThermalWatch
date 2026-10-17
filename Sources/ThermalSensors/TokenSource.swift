@@ -14,7 +14,12 @@ public final class TokenSource: @unchecked Sendable {
 
     public let config: Config
     private let session: URLSession
-    public private(set) var lastError: String?
+    private let errorLock = NSLock()
+    private var _lastError: String?
+    public private(set) var lastError: String? {
+        get { errorLock.lock(); defer { errorLock.unlock() }; return _lastError }
+        set { errorLock.lock(); defer { errorLock.unlock() }; _lastError = newValue }
+    }
 
     public init(config: Config, session: URLSession? = nil) {
         self.config = config

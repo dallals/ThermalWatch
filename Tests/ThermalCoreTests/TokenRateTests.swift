@@ -69,3 +69,14 @@ private func snap(_ reqs: [(String, Int, Double?)], active: Int? = nil) -> Activ
     let text = "KEY=first\nKEY=second # still part of the value\n"
     #expect(EnvFile.value(named: "KEY", in: text) == "second # still part of the value")
 }
+
+@Test func omlxRestartNeverGoesNegative() {
+    var t = TokenRateTracker()
+    _ = t.update(snap([("a", 500, 20)]), now: 0)
+    // oMLX restarted: same id, counter reset to 20, elapsed within the interval
+    #expect(t.update(snap([("a", 20, 0.8)]), now: 1) == 0)
+    // a new id after restart counts all its tokens when it started within dt
+    var u = TokenRateTracker()
+    _ = u.update(snap([("a", 500, 20)]), now: 0)
+    #expect(u.update(snap([("z", 20, 0.8)]), now: 1) == 20)
+}

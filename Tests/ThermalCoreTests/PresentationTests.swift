@@ -77,3 +77,23 @@ private func sample(_ t: Double, perf: Double? = nil, state: ThrottleState = .co
     #expect(Format.tokenChange(before: 30, during: 33) == "30 → 33 tok/s, +10%")
     #expect(Format.tokenChange(before: nil, during: 29) == nil)
 }
+
+@Test func nonFiniteFormatsFallBack() {
+    #expect(Format.watts(.nan) == "—")
+    #expect(Format.rpm([.infinity]) == "—")
+    #expect(Format.duration(.nan) == "0s")
+    #expect(Format.tokenChange(before: .nan, during: 30) == nil)
+    #expect(Format.ghz(.infinity) == "—")
+    #expect(Format.percent(.nan) == "—")
+    #expect(Format.temp(.nan) == "—")
+    #expect(Format.tokens(.nan) == "idle")
+}
+
+@Test func csvNonFiniteCellsAreEmpty() {
+    var s = Sample(timestamp: 0)
+    s.cpuWatts = .nan
+    s.fanRPM = [.infinity, 2000]
+    let row = CSVExport.csv([s]).split(separator: "\n", omittingEmptySubsequences: false)[1].split(separator: ",", omittingEmptySubsequences: false)
+    #expect(row[9] == "")
+    #expect(row[14] == "2000")
+}

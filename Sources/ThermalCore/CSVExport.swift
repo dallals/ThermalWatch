@@ -5,8 +5,8 @@ public enum CSVExport {
 
     public static func csv(_ samples: [Sample]) -> String {
         let iso = ISO8601DateFormatter()
-        func f1(_ v: Double?) -> String { v.map { String(format: "%.1f", $0) } ?? "" }
-        func f3(_ v: Double?) -> String { v.map { String(format: "%.3f", $0) } ?? "" }
+        func f1(_ v: Double?) -> String { v.flatMap { $0.isFinite ? String(format: "%.1f", $0) : nil } ?? "" }
+        func f3(_ v: Double?) -> String { v.flatMap { $0.isFinite ? String(format: "%.3f", $0) : nil } ?? "" }
         var lines = [header]
         for s in samples {
             let columns = [
@@ -17,7 +17,7 @@ public enum CSVExport {
                 s.gpuThermalCapped.map { $0 ? "1" : "0" } ?? "",
                 f1(s.cpuWatts), f1(s.gpuWatts), f1(s.systemWatts),
                 f1(s.cpuTempC), f1(s.gpuTempC),
-                s.fanRPM.map { String(Int($0.rounded())) }.joined(separator: ";"),
+                s.fanRPM.filter(\.isFinite).map { String(Int($0.rounded())) }.joined(separator: ";"),
                 f1(s.tokensPerSec),
                 String(s.state.rawValue),
                 s.clockLimited ? "1" : "0",

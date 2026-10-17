@@ -14,6 +14,8 @@ public struct AlertPolicy: Sendable {
     private var wasHeavy = false
     private var limitedSince: Double?
     private var sustainedConsumed = false
+    private var pendingHeavy = false
+    private var pendingSustained = false
 
     public init() {}
 
@@ -30,19 +32,27 @@ public struct AlertPolicy: Sendable {
         } else {
             limitedSince = nil
             sustainedConsumed = false
+            pendingSustained = false
         }
+        if !heavy { pendingHeavy = false }
         let sustained = limitedSince.map { s.timestamp - $0 + 1 >= sustainSeconds } ?? false
 
-        var kind: AlertKind?
-        if enteredHeavy && heavyEnabled {
-            kind = .heavyPressure
-        } else if sustained && !sustainedConsumed && sustainedEnabled {
-            kind = .sustainedClockLimit
-        }
+        if enteredHeavy && heavyEnabled { pendingHeavy = true }
+        if sustained && !sustainedConsumed && sustainedEnabled { pendingSustained = true }
         if sustained { sustainedConsumed = true }
 
-        guard let kind else { return nil }
+        // A kind held back only by minInterval stays pending until it expires and the condition still holds.
         if let last = lastAlert, s.timestamp - last < minInterval { return nil }
+        let kind: AlertKind
+        if pendingHeavy {
+            kind = .heavyPressure
+            pendingHeavy = false
+        } else if pendingSustained {
+            kind = .sustainedClockLimit
+            pendingSustained = false
+        } else {
+            return nil
+        }
         lastAlert = s.timestamp
         return kind
     }
@@ -66,18 +76,16 @@ public enum AlertText {
             return "Thermal pressure is \(level)." + (temps.isEmpty ? "" : " " + temps.joined(separator: ", ") + ".")
         case .sustainedClockLimit:
             var text = "Clocks held down for 30 s."
-            var worst: (Cluster, Double)?
+            var limited: [(Cluster, Double)] = []
             for c in Cluster.allCases {
                 guard let mhz = s.mhz(c), let busy = s.busy(c), busy > Thresholds.standard.busy,
                       let peak = peaks[c], peak > 0 else { continue }
-                let share = mhz / peak
-                if worst == nil || share < worst!.1 { worst = (c, share) }
+                if mhz < peak * (1 - Thresholds.standard.throttleDrop) { limited.append((c, mhz / peak)) }
             }
-            if let (c, share) = worst, share < 1 {
+            for (c, share) in limited.sorted(by: { $0.1 < $1.1 }) {
                 text += " \(c.label) at \(Int((share * 100).rounded()))% of peak."
-            } else if s.gpuThermalCapped == true {
-                text += " GPU thermally capped."
             }
+            if s.gpuThermalCapped == true { text += " GPU thermally capped." }
             return text
         }
     }

@@ -69,3 +69,37 @@ private func p(_ t: Double, pressure: Int = 0, limited: Bool = false) -> Sample 
     #expect(IconStatus.from(p(0, pressure: 3, limited: true)) == IconStatus(color: .red, slashed: true))
     #expect(IconStatus.from(p(0, pressure: 4)) == IconStatus(color: .red, slashed: false))
 }
+
+@Test func sustainedTextNamesRealCause() {
+    var a = p(0, limited: true)
+    a.superMHz = 4010; a.superBusy = 1.0
+    a.perfMHz = 4380; a.perfBusy = 1.0
+    a.gpuThermalCapped = true
+    let peaks: [Cluster: Double] = [.superCores: 4608, .performance: 4380]
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: a, peaks: peaks) == "Clocks held down for 30 s. GPU thermally capped.")
+
+    var c = p(0, limited: true)
+    c.perfMHz = 3120; c.perfBusy = 0.95
+    c.gpuThermalCapped = true
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: c, peaks: [.performance: 4000]) == "Clocks held down for 30 s. Perf at 78% of peak. GPU thermally capped.")
+}
+
+@Test func heavyPendingDeliveredAfterInterval() {
+    var a = AlertPolicy()
+    for t in 0..<29 { _ = a.evaluate(p(Double(t), pressure: 1, limited: true)) }
+    #expect(a.evaluate(p(29, pressure: 1, limited: true)) == .sustainedClockLimit)
+    #expect(a.evaluate(p(170, pressure: 2)) == nil)
+    #expect(a.evaluate(p(400, pressure: 2)) == nil)
+    #expect(a.evaluate(p(629, pressure: 2)) == .heavyPressure)
+    #expect(a.evaluate(p(630, pressure: 2)) == nil)
+}
+
+@Test func heavyPendingDroppedWhenPressureEases() {
+    var a = AlertPolicy()
+    for t in 0..<29 { _ = a.evaluate(p(Double(t), pressure: 1, limited: true)) }
+    #expect(a.evaluate(p(29, pressure: 1, limited: true)) == .sustainedClockLimit)
+    #expect(a.evaluate(p(170, pressure: 2)) == nil)
+    #expect(a.evaluate(p(300, pressure: 1)) == nil)
+    #expect(a.evaluate(p(629, pressure: 1)) == nil)
+    #expect(a.evaluate(p(700, pressure: 0)) == nil)
+}
