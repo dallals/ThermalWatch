@@ -6,7 +6,9 @@ let mode5: [SwiftSetting] = [.swiftLanguageMode(.v5)]
 let package = Package(
     name: "ThermalWatch",
     platforms: [.macOS("27.0")],
-    products: [],
+    products: [
+        .executable(name: "thermalwatch-probe", targets: ["ThermalProbe"]),
+    ],
     targets: [
         .target(
             name: "ThermalCore",
@@ -21,5 +23,6 @@ let package = Package(
             linkerSettings: [.linkedFramework("IOKit")]
         ),
         .testTarget(name: "ThermalSensorsTests", dependencies: ["ThermalSensors"], swiftSettings: mode5),
+        .executableTarget(name: "ThermalProbe", dependencies: ["ThermalCore", "ThermalSensors"], swiftSettings: mode5),
     ]
 )
