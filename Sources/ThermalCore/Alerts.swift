@@ -68,7 +68,8 @@ public enum AlertText {
             var text = "Clocks held down for 30 s."
             var worst: (Cluster, Double)?
             for c in Cluster.allCases {
-                guard let mhz = s.mhz(c), let peak = peaks[c], peak > 0 else { continue }
+                guard let mhz = s.mhz(c), let busy = s.busy(c), busy > Thresholds.standard.busy,
+                      let peak = peaks[c], peak > 0 else { continue }
                 let share = mhz / peak
                 if worst == nil || share < worst!.1 { worst = (c, share) }
             }

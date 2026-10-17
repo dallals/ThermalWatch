@@ -50,6 +50,14 @@ private func p(_ t: Double, pressure: Int = 0, limited: Bool = false) -> Sample 
     #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [:]) == "Clocks held down for 30 s. GPU thermally capped.")
 }
 
+@Test func alertTextIgnoresIdleClusters() {
+    var g = p(0, limited: true)
+    g.gpuThermalCapped = true
+    g.perfMHz = 1200
+    g.perfBusy = 0.1
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [.performance: 4000]) == "Clocks held down for 30 s. GPU thermally capped.")
+}
+
 @Test func iconColors() {
     #expect(IconStatus.from(nil) == IconStatus(color: .gray, slashed: false))
     #expect(IconStatus.from(p(0)) == IconStatus(color: .green, slashed: false))
