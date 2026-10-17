@@ -29,6 +29,8 @@ struct LoadTestView: View {
                         Text(r.note.isEmpty ? Format.dash : r.note).frame(width: 120, alignment: .leading)
                         Text(r.secondsToThrottle.map { "throttled at \(Format.duration($0))" } ?? "did not throttle")
                         Spacer()
+                        Text(r.steadyDrop.values.max().map { "−\(Int(($0 * 100).rounded()))%" } ?? Format.dash)
+                        Text("\(Format.watts(r.startWatts))→\(Format.watts(r.endWatts))")
                         Text("peak \(Format.temp(max(r.peakCPUTempC ?? 0, r.peakGPUTempC ?? 0)))")
                     }
                     .font(.callout.monospacedDigit())

@@ -86,7 +86,9 @@ final class LoadTestModel {
             return
         }
         var result = current.result(stopReason: reason, endedAt: now, peaks: peaks(), note: note)
-        if let store, let id = try? store.insert(result) { result.id = id }
+        if let store {
+            do { result.id = try store.insert(result) } catch { self.error = "Result not saved: \(error)" }
+        }
         run = nil
         phase = .finished(result)
         reloadHistory()

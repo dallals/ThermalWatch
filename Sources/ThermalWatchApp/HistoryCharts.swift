@@ -4,12 +4,13 @@ import ThermalCore
 
 enum TimeAxis {
     @AxisContentBuilder
-    static func marks() -> some AxisContent {
+    static func marks(range: TimeRange = .tenMinutes) -> some AxisContent {
+        let showDate = range.rawValue >= 86_400
         AxisMarks(values: .automatic(desiredCount: 6)) { value in
             AxisGridLine()
             AxisValueLabel {
                 if let t = value.as(Double.self) {
-                    Text(Date(timeIntervalSince1970: t), format: .dateTime.hour().minute())
+                    Text(Date(timeIntervalSince1970: t), format: showDate ? .dateTime.month(.abbreviated).day().hour() : .dateTime.hour().minute())
                 }
             }
         }
@@ -22,6 +23,7 @@ struct MetricChart: View {
     let series: [ChartSeries]
     let bands: [StateBand]
     let domain: ClosedRange<Double>
+    var range: TimeRange = .tenMinutes
     var height: CGFloat = 120
     var note: String?
 
@@ -51,7 +53,7 @@ struct MetricChart: View {
                 }
             }
             .chartXScale(domain: domain)
-            .chartXAxis { TimeAxis.marks() }
+            .chartXAxis { TimeAxis.marks(range: range) }
             .chartLegend(.hidden)
             .frame(height: height)
         }

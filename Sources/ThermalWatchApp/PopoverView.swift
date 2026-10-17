@@ -7,6 +7,11 @@ struct PopoverView: View {
     @Environment(\.openWindow) private var openWindow
     let model: AppModel
 
+    private static func clock(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
     var body: some View {
         let sample = model.monitor.latest
         let peaks = model.monitor.currentPeaks
@@ -24,8 +29,17 @@ struct PopoverView: View {
             }
             Text("CPU \(Format.temp(sample?.cpuTempC))  GPU \(Format.temp(sample?.gpuTempC))  Fans \(Format.rpm(sample?.fanRPM ?? []))  \(Format.watts(sample?.systemWatts))")
                 .font(.callout.monospacedDigit())
-            Text("oMLX  \(Format.tokens(sample?.tokensPerSec))").font(.callout.monospacedDigit())
-            Sparkline(samples: Array(model.monitor.recent.suffix(600)), peak: peaks[.performance])
+            Text("oMLX  \(model.monitor.unavailable.contains("tokens") ? Format.dash : Format.tokens(sample?.tokensPerSec))").font(.callout.monospacedDigit())
+            if model.loadTest.isRunning {
+                HStack {
+                    Text("Load test running — \(Self.clock(max(0, (model.loadTest.run?.plannedSeconds ?? 0) - (model.loadTest.run?.elapsed ?? 0)))) left")
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Stop") { model.loadTest.stop(.userStopped) }
+                }
+                .font(.callout)
+            }
+            Sparkline(samples: Array(model.monitor.recent.suffix(600)), peaks: peaks)
             Text("Throttled \(Format.duration(model.todayThrottled)) today · longest \(Format.duration(model.todayLongest))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -72,10 +86,23 @@ private struct ClusterRow: View {
     }
 }
 
-/// Last 10 minutes: Perf clock as % of its reference peak, with throttled stretches shaded.
+/// Last 10 minutes: the lowest clock (as % of reference peak) among busy clusters,
+/// falling back to Perf when nothing is busy, with throttled stretches shaded.
 private struct Sparkline: View {
     let samples: [Sample]
-    let peak: Double?
+    let peaks: [Cluster: Double]
+
+    private func share(_ s: Sample) -> Double? {
+        var lowest: Double?
+        for c in Cluster.allCases {
+            guard let mhz = s.mhz(c), let busy = s.busy(c), busy > Thresholds.standard.busy,
+                  let peak = peaks[c], peak > 0 else { continue }
+            lowest = min(lowest ?? .infinity, mhz / peak * 100)
+        }
+        if let lowest { return lowest }
+        if let mhz = s.perfMHz, let peak = peaks[.performance], peak > 0 { return mhz / peak * 100 }
+        return nil
+    }
 
     var body: some View {
         let bands = Downsampler.bands(samples)
@@ -84,11 +111,9 @@ private struct Sparkline: View {
                 RectangleMark(xStart: .value("Start", band.start), xEnd: .value("End", band.end))
                     .foregroundStyle(StatusColor.color(pressure: band.pressure, clockLimited: band.clockLimited, warm: false).swiftUIColor.opacity(0.25))
             }
-            if let peak, peak > 0 {
-                ForEach(samples, id: \.timestamp) { s in
-                    if let mhz = s.perfMHz {
-                        LineMark(x: .value("Time", s.timestamp), y: .value("% of peak", mhz / peak * 100))
-                    }
+            ForEach(samples, id: \.timestamp) { s in
+                if let pct = share(s) {
+                    LineMark(x: .value("Time", s.timestamp), y: .value("% of peak", pct))
                 }
             }
         }
