@@ -36,7 +36,7 @@ final class AppModel {
         self.sensors = sensors
         self.store = store
         self.storeOpenError = openError
-        self.monitor = Monitor(sensors: sensors, store: store)
+        self.monitor = Monitor(sensors: sensors, store: store, retentionDays: Double(settings.retentionDays))
 
         applySettings()
         monitor.start()

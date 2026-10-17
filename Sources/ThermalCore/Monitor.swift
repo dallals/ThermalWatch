@@ -37,15 +37,18 @@ public final class Monitor {
     @ObservationIgnored private var peaks: PeakTracker
     @ObservationIgnored private var events = EventBuilder()
     @ObservationIgnored private var pending: [Sample] = []
+    @ObservationIgnored private var pendingEvents: [ThrottleEvent] = []
+    @ObservationIgnored private var isShutdown = false
     @ObservationIgnored private var lastFlush: Double
     @ObservationIgnored private var lastMaintenance: Double
     @ObservationIgnored private var loop: Task<Void, Never>?
 
     public init(sensors: SensorSuite, store: HistoryWriting?, detector: ThrottleDetector = ThrottleDetector(),
-                now: Double = Date().timeIntervalSince1970) {
+                retentionDays: Double = 7, now: Double = Date().timeIntervalSince1970) {
         self.sensors = sensors
         self.store = store
         self.detector = detector
+        self.retentionDays = retentionDays
         self.peaks = PeakTracker(tableMax: sensors.tableMax, busyThreshold: detector.thresholds.busy)
         self.events = EventBuilder(busyThreshold: detector.thresholds.busy)
         self.lastFlush = now
@@ -56,6 +59,7 @@ public final class Monitor {
 
     public func tick(now: Double) async {
         var s = await sensors.read(now: now)
+        if Task.isCancelled || isShutdown { return }
         s.timestamp = now
         let usedPeaks = peaks.peaks()
         let window = Array(recent.suffix(Int(detector.thresholds.busySeconds) + 5))
@@ -81,19 +85,23 @@ public final class Monitor {
         if now - lastMaintenance >= Self.maintenanceInterval { maintain(now: now) }
     }
 
-    /// Writes pending samples. On failure they are kept (up to `memorySeconds`) and retried next flush.
+    /// Writes pending events, then pending samples. Failed items stay queued (samples up to `memorySeconds`)
+    /// and are retried next flush. `storeError` clears only when both writes succeed.
     public func flush(now: Double = Date().timeIntervalSince1970) {
         lastFlush = now
-        guard let store, !pending.isEmpty else { return }
-        do {
-            try store.insert(pending)
-            pending.removeAll()
-            storeError = nil
-        } catch {
-            storeError = "\(error)"
-            let cutoff = now - Self.memorySeconds
-            pending.removeAll { $0.timestamp < cutoff }
+        guard let store else { return }
+        var failure: String?
+        while let event = pendingEvents.first {
+            do { try store.insert(event); pendingEvents.removeFirst() } catch { failure = "\(error)"; break }
         }
+        if !pending.isEmpty {
+            do { try store.insert(pending); pending.removeAll() } catch {
+                failure = "\(error)"
+                let cutoff = now - Self.memorySeconds
+                pending.removeAll { $0.timestamp < cutoff }
+            }
+        }
+        if let failure { storeError = failure } else if pendingEvents.isEmpty { storeError = nil }
     }
 
     public func start() {
@@ -115,6 +123,7 @@ public final class Monitor {
 
     /// Stops sampling, closes any open event and writes everything pending (app quit).
     public func shutdown(now: Double = Date().timeIntervalSince1970) {
+        isShutdown = true
         stop()
         if let e = events.flush() { save(e) }
         openEvent = nil
@@ -124,7 +133,11 @@ public final class Monitor {
     private func save(_ event: ThrottleEvent) {
         onEventClosed?(event)
         guard let store else { return }
-        do { try store.insert(event) } catch { storeError = "\(error)" }
+        pendingEvents.append(event)
+        do {
+            // Write in order; anything that fails stays queued for the next flush.
+            while let e = pendingEvents.first { try store.insert(e); pendingEvents.removeFirst() }
+        } catch { storeError = "\(error)" }
     }
 
     /// Prunes old history and refreshes reference peaks from the last 7 days plus samples still in memory.

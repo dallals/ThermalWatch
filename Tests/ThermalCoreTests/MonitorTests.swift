@@ -143,3 +143,56 @@ private func ticks(_ m: Monitor, _ times: ClosedRange<Int>) async {
     #expect(store.samples.count == 4)
     #expect(m.openEvent == nil)
 }
+
+@Test @MainActor func launchPruneUsesConfiguredRetention() {
+    let store = FakeStore()
+    _ = Monitor(sensors: FakeSensors(), store: store, retentionDays: 30, now: 0)
+    #expect(store.pruneCutoffs == [-30 * 86_400])
+}
+
+@Test @MainActor func closedEventSurvivesStoreFailure() async {
+    let sensors = FakeSensors()
+    sensors.make = { t in Sample(timestamp: t, pressure: t <= 2 ? 1 : 0) }
+    let store = FakeStore()
+    store.failInserts = true
+    let m = Monitor(sensors: sensors, store: store, now: 0)
+    await ticks(m, 0...12)
+    #expect(m.openEvent == nil)
+    #expect(store.events.isEmpty)
+    #expect(m.storeError != nil)
+    store.failInserts = false
+    await ticks(m, 13...22)
+    #expect(store.events.map(\.start) == [0])
+    #expect(m.storeError == nil)
+}
+
+@Test @MainActor func storeErrorStaysWhileEventsPending() async {
+    let sensors = FakeSensors()
+    sensors.make = { t in Sample(timestamp: t, pressure: t <= 2 ? 1 : 0) }
+    final class SplitStore: HistoryWriting {
+        var samples: [Sample] = []
+        var events: [ThrottleEvent] = []
+        func insert(_ s: [Sample]) throws { samples += s }
+        func insert(_ e: ThrottleEvent) throws { throw StoreError.sqlite("event fail") }
+        func maxBusyMHz(since: Double, busyAbove: Double) throws -> [Cluster: Double] { [:] }
+        func prune(olderThan cutoff: Double) throws {}
+    }
+    let store = SplitStore()
+    let m = Monitor(sensors: sensors, store: store, now: 0)
+    await ticks(m, 0...22)
+    #expect(!store.samples.isEmpty)
+    #expect(m.storeError != nil)
+}
+
+@Test @MainActor func tickAfterShutdownIsIgnored() async {
+    let store = FakeStore()
+    let m = Monitor(sensors: FakeSensors(), store: store, now: 0)
+    await m.tick(now: 0)
+    m.shutdown(now: 1)
+    let stored = store.samples.count
+    await m.tick(now: 2)
+    #expect(m.recent.count == 1)
+    #expect(store.samples.count == stored)
+    m.flush(now: 30)
+    #expect(store.samples.count == stored)
+}

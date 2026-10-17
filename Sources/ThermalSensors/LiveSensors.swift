@@ -6,12 +6,16 @@ public final class LiveSensors: SensorSuite {
     private let pressure = PressureSource()
     private let clocks: ClockSource
     private let smc: SMCSource?
+    /// Guards `token`, `rate`, `_unavailable` and `_lastActivity` (read() runs off the main actor).
+    private let lock = NSLock()
     private var token: TokenSource?
     private var rate = TokenRateTracker()
+    private var _unavailable: Set<String> = []
+    private var _lastActivity: ActivitySnapshot?
 
     public let tableMax: [Cluster: Double]
-    public private(set) var unavailable: Set<String> = []
-    public private(set) var lastActivity: ActivitySnapshot?
+    public var unavailable: Set<String> { lock.withLock { _unavailable } }
+    public var lastActivity: ActivitySnapshot? { lock.withLock { _lastActivity } }
 
     public init(tokenConfig: TokenSource.Config?) {
         clocks = ClockSource()
@@ -21,18 +25,21 @@ public final class LiveSensors: SensorSuite {
     }
 
     public var omlxBusy: Bool { (lastActivity?.activeRequests ?? 0) > 0 }
-    public var tokenError: String? { token?.lastError }
+    public var tokenError: String? { lock.withLock { token }?.lastError }
 
     public func updateTokenConfig(_ config: TokenSource.Config?) {
-        guard config != token?.config else { return }
-        token = config.map { TokenSource(config: $0) }
-        rate = TokenRateTracker()
-        lastActivity = nil
+        lock.withLock {
+            guard config != token?.config else { return }
+            token = config.map { TokenSource(config: $0) }
+            rate = TokenRateTracker()
+            _lastActivity = nil
+        }
     }
 
     public func read(now: Double) async -> Sample {
         var s = Sample(timestamp: now)
         var missing = Set<String>()
+        let currentToken = lock.withLock { token }
 
         s.pressure = pressure.read()
         if s.pressure == nil { missing.insert("pressure") }
@@ -64,16 +71,20 @@ public final class LiveSensors: SensorSuite {
             missing.formUnion(["temps", "fans", "power"])
         }
 
-        if let token {
-            let snapshot = await token.fetch()
-            lastActivity = snapshot
-            s.tokensPerSec = rate.update(snapshot, now: now)
-            if snapshot == nil { missing.insert("tokens") }
+        if let currentToken {
+            let snapshot = await currentToken.fetch()
+            lock.withLock {
+                if token === currentToken {
+                    _lastActivity = snapshot
+                    s.tokensPerSec = rate.update(snapshot, now: now)
+                    if snapshot == nil { missing.insert("tokens") }
+                }
+            }
         } else {
             missing.insert("tokens")
         }
 
-        unavailable = missing
+        lock.withLock { _unavailable = missing }
         return s
     }
 }
