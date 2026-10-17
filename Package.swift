@@ -8,6 +8,7 @@ let package = Package(
     platforms: [.macOS("27.0")],
     products: [
         .executable(name: "thermalwatch-probe", targets: ["ThermalProbe"]),
+        .executable(name: "ThermalWatch", targets: ["ThermalWatchApp"]),
     ],
     targets: [
         .target(
@@ -24,5 +25,10 @@ let package = Package(
         ),
         .testTarget(name: "ThermalSensorsTests", dependencies: ["ThermalSensors"], swiftSettings: mode5),
         .executableTarget(name: "ThermalProbe", dependencies: ["ThermalCore", "ThermalSensors"], swiftSettings: mode5),
+        .executableTarget(
+            name: "ThermalWatchApp",
+            dependencies: ["ThermalCore", "ThermalSensors"],
+            swiftSettings: mode5
+        ),
     ]
 )
