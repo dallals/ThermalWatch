@@ -8,6 +8,10 @@ can overlay tokens/sec from a local [oMLX](https://github.com/jundot/omlx) serve
 
 Everything runs locally. No `sudo`, no helper daemon, no network access beyond an optional loopback call to oMLX.
 
+![ThermalWatch history window showing one hour of clocks, temperatures, fans, power and oMLX tokens/sec, with throttled stretches shaded orange and a list of throttle events](docs/images/history-window.png)
+
+*One hour of history on an M5 Max. The shaded stretch is a 9-minute throttle event at Heavy pressure, during which oMLX fell from 140 to 72 tokens/sec.*
+
 ## Features
 
 - **Always-on glance** — a chip icon in the menu bar with a colored dot (green / yellow / orange / red). Optionally shows the hottest die temperature next to it.
