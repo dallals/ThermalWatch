@@ -16,6 +16,7 @@ final class AppModel {
     private(set) var todayThrottled: Double = 0
     private(set) var todayLongest: Double = 0
     private(set) var loginItemError: String?
+    private(set) var tokenError: String?
 
     /// Run first by `shutdown()` (e.g. the load test stops its threads).
     @ObservationIgnored var onShutdown: [() -> Void] = []
@@ -43,6 +44,7 @@ final class AppModel {
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.refreshToday()
+                self?.refreshStatus()
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
             }
         }
@@ -57,6 +59,11 @@ final class AppModel {
         settings = new
         new.save()
         applySettings()
+        refreshStatus()
+    }
+
+    func refreshStatus() {
+        tokenError = sensors.tokenError
     }
 
     func refreshToday(now: Date = Date()) {

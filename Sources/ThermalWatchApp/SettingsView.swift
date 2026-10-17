@@ -9,7 +9,7 @@ struct SettingsView: View {
         Form {
             Section("General") {
                 Toggle("Launch at login", isOn: $draft.launchAtLogin)
-                Toggle("Show CPU temperature in the menu bar", isOn: $draft.showTempInMenuBar)
+                Toggle("Show hottest chip temperature in the menu bar", isOn: $draft.showTempInMenuBar)
                 Stepper("Keep history for \(draft.retentionDays) days", value: $draft.retentionDays, in: 1...30)
             }
             Section("Alerts") {
@@ -20,7 +20,7 @@ struct SettingsView: View {
                 TextField("Server URL", text: $draft.omlxURL)
                 TextField("Key file", text: $draft.keyEnvPath)
                 TextField("Key variable (leave empty for no key)", text: $draft.keyEnvVar)
-                if let error = model.sensors.tokenError {
+                if let error = model.tokenError {
                     Text("Last error: \(error)").font(.caption).foregroundStyle(.secondary)
                 }
             }

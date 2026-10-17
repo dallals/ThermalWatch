@@ -36,7 +36,7 @@ struct MenuBarLabel: View {
         let sample = model.monitor.latest
         HStack(spacing: 3) {
             Image(nsImage: MenuBarIcon.image(IconStatus.from(sample)))
-            if model.settings.showTempInMenuBar, let t = sample?.cpuTempC {
+            if model.settings.showTempInMenuBar, let t = [sample?.cpuTempC, sample?.gpuTempC].compactMap({ $0 }).max() {
                 Text(Format.temp(t))
             }
         }
