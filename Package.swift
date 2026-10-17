@@ -24,10 +24,16 @@ let package = Package(
             linkerSettings: [.linkedFramework("IOKit")]
         ),
         .testTarget(name: "ThermalSensorsTests", dependencies: ["ThermalSensors"], swiftSettings: mode5),
+        .target(
+            name: "ThermalLoad",
+            swiftSettings: mode5,
+            linkerSettings: [.linkedFramework("Metal")]
+        ),
+        .testTarget(name: "ThermalLoadTests", dependencies: ["ThermalLoad"], swiftSettings: mode5),
         .executableTarget(name: "ThermalProbe", dependencies: ["ThermalCore", "ThermalSensors"], swiftSettings: mode5),
         .executableTarget(
             name: "ThermalWatchApp",
-            dependencies: ["ThermalCore", "ThermalSensors"],
+            dependencies: ["ThermalCore", "ThermalSensors", "ThermalLoad"],
             swiftSettings: mode5
         ),
     ]

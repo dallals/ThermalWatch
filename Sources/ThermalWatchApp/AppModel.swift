@@ -14,6 +14,7 @@ final class AppModel {
     let storeOpenError: String?
     let monitor: Monitor
     let notifier = Notifier()
+    let loadTest: LoadTestModel
     private(set) var todayThrottled: Double = 0
     private(set) var todayLongest: Double = 0
     private(set) var loginItemError: String?
@@ -34,11 +35,14 @@ final class AppModel {
         } catch {
             openError = "\(error)"
         }
+        let monitor = Monitor(sensors: sensors, store: store, retentionDays: Double(settings.retentionDays))
+        let loadTest = LoadTestModel(store: store, peaks: { [monitor] in monitor.currentPeaks })
         self.settings = settings
         self.sensors = sensors
         self.store = store
         self.storeOpenError = openError
-        self.monitor = Monitor(sensors: sensors, store: store, retentionDays: Double(settings.retentionDays))
+        self.monitor = monitor
+        self.loadTest = loadTest
 
         applySettings()
         monitor.start()
@@ -59,6 +63,10 @@ final class AppModel {
             self.notifier.post(kind, sample: sample, peaks: self.monitor.currentPeaks)
         }
         Task { [notifier] in await notifier.requestAuthorization() }
+        monitor.onSample = { [weak self] sample in self?.loadTest.feed(sample) }
+        onShutdown.append { [weak self] in
+            if self?.loadTest.isRunning == true { self?.loadTest.stop(.appQuit) }
+        }
     }
 
     func update(_ new: AppSettings) {

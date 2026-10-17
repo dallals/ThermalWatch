@@ -17,6 +17,11 @@ struct ThermalWatchApp: App {
         }
         .defaultLaunchBehavior(.suppressed)
 
+        Window("Load test", id: "loadtest") {
+            LoadTestView(model: model)
+        }
+        .defaultLaunchBehavior(.suppressed)
+
         Settings {
             SettingsView(model: model)
         }

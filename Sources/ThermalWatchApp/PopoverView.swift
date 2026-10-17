@@ -41,6 +41,10 @@ struct PopoverView: View {
                     openWindow(id: "main")
                     NSApp.activate()
                 }
+                Button("Load test") {
+                    openWindow(id: "loadtest")
+                    NSApp.activate()
+                }
                 SettingsLink { Text("Settings") }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
