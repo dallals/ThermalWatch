@@ -13,6 +13,7 @@ final class AppModel {
     let store: HistoryStore?
     let storeOpenError: String?
     let monitor: Monitor
+    let notifier = Notifier()
     private(set) var todayThrottled: Double = 0
     private(set) var todayLongest: Double = 0
     private(set) var loginItemError: String?
@@ -53,6 +54,11 @@ final class AppModel {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.shutdown() }
         }
+        monitor.onAlert = { [weak self] kind, sample in
+            guard let self else { return }
+            self.notifier.post(kind, sample: sample, peaks: self.monitor.currentPeaks)
+        }
+        Task { [notifier] in await notifier.requestAuthorization() }
     }
 
     func update(_ new: AppSettings) {

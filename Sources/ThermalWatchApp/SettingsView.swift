@@ -15,6 +15,7 @@ struct SettingsView: View {
             Section("Alerts") {
                 Toggle("Thermal pressure reaches Heavy", isOn: $draft.alertHeavy)
                 Toggle("Clocks held down for 30 seconds", isOn: $draft.alertSustained)
+                Button("Send test notification") { model.notifier.postTest() }
             }
             Section("oMLX token speed") {
                 TextField("Server URL", text: $draft.omlxURL)
