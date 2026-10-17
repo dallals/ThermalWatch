@@ -51,3 +51,18 @@ if let smc = SMCSource() {
 } else {
     check("SMC open", false)
 }
+let tokenSource = TokenSource(config: .init())
+let semaphore = DispatchSemaphore(value: 0)
+// Detached: top-level code runs on the main actor, which `semaphore.wait()` blocks.
+Task.detached {
+    let snapshot = await tokenSource.fetch()
+    if let snapshot {
+        print("oMLX: \(snapshot.activeRequests) active request(s), \(snapshot.generating.count) generating")
+        check("oMLX activity reachable", true)
+    } else {
+        print("oMLX: unavailable (\(tokenSource.lastError ?? "unknown"))")
+        check("oMLX activity reachable (WARN is fine if KonaClaw is not running)", false)
+    }
+    semaphore.signal()
+}
+semaphore.wait()
