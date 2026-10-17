@@ -14,5 +14,12 @@ let package = Package(
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .testTarget(name: "ThermalCoreTests", dependencies: ["ThermalCore"], swiftSettings: mode5),
+        .target(
+            name: "ThermalSensors",
+            dependencies: ["ThermalCore"],
+            swiftSettings: mode5,
+            linkerSettings: [.linkedFramework("IOKit")]
+        ),
+        .testTarget(name: "ThermalSensorsTests", dependencies: ["ThermalSensors"], swiftSettings: mode5),
     ]
 )
