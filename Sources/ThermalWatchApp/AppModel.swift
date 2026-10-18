@@ -14,6 +14,7 @@ final class AppModel {
     let storeOpenError: String?
     let monitor: Monitor
     let notifier = Notifier()
+    @ObservationIgnored let dockPresence = DockPresence()
     let loadTest: LoadTestModel
     private(set) var todayThrottled: Double = 0
     private(set) var todayLongest: Double = 0
