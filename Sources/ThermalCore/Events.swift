@@ -93,7 +93,10 @@ public struct EventBuilder: Sendable {
         return e
     }
 
+    /// Fewer readings than this make no fair before/during comparison (a reply's first seconds alone).
+    static let minTokenReadings = 5
+
     static func mean(_ values: [Double]) -> Double? {
-        values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
+        values.count < minTokenReadings ? nil : values.reduce(0, +) / Double(values.count)
     }
 }

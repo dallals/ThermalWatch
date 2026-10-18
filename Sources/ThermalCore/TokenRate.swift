@@ -57,13 +57,17 @@ public struct TokenRateTracker: Sendable {
         guard let previousTime, now > previousTime, !snapshot.generating.isEmpty else { return nil }
         let dt = now - previousTime
         var total = 0
+        var measured = false
         for r in snapshot.generating {
             if let before = previous[r.id] {
                 total += max(0, r.tokens - before)
+                measured = true
             } else if let elapsed = r.elapsed, elapsed <= dt {
                 total += r.tokens
             }
         }
-        return Double(total) / dt
+        // A reply's first poll covers its prompt processing too, so its tokens over the whole interval
+        // read far below its real speed. With nothing already generating, there is no speed to report yet.
+        return measured ? Double(total) / dt : nil
     }
 }

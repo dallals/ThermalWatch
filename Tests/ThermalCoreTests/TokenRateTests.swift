@@ -75,8 +75,18 @@ private func snap(_ reqs: [(String, Int, Double?)], active: Int? = nil) -> Activ
     _ = t.update(snap([("a", 500, 20)]), now: 0)
     // oMLX restarted: same id, counter reset to 20, elapsed within the interval
     #expect(t.update(snap([("a", 20, 0.8)]), now: 1) == 0)
-    // a new id after restart counts all its tokens when it started within dt
+    // a new id after restart has no speed yet; its second poll does
     var u = TokenRateTracker()
     _ = u.update(snap([("a", 500, 20)]), now: 0)
-    #expect(u.update(snap([("z", 20, 0.8)]), now: 1) == 20)
+    #expect(u.update(snap([("z", 20, 0.8)]), now: 1) == nil)
+    #expect(u.update(snap([("z", 120, 1.8)]), now: 2) == 100)
+}
+
+@Test func newReplyAloneHasNoSpeedYet() {
+    // The first poll of a reply mostly covers prompt processing: 2 tokens in that second is not its speed.
+    var t = TokenRateTracker()
+    _ = t.update(snap([("a", 100, 5)]), now: 0)
+    #expect(t.update(snap([], active: 0), now: 1) == nil)
+    #expect(t.update(snap([("b", 2, 0.9)]), now: 2) == nil)
+    #expect(t.update(snap([("b", 110, 1.9)]), now: 3) == 108)
 }

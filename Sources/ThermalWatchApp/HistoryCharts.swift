@@ -47,7 +47,7 @@ struct MetricChart: View {
                             RuleMark(x: .value("Time", p.t), yStart: .value(unit, p.min), yEnd: .value(unit, p.max))
                                 .foregroundStyle(s.color.opacity(0.25))
                         }
-                        LineMark(x: .value("Time", p.t), y: .value(unit, p.mean), series: .value("Series", s.name))
+                        LineMark(x: .value("Time", p.t), y: .value(unit, p.mean), series: .value("Series", "\(s.name)#\(p.segment)"))
                             .foregroundStyle(s.color)
                     }
                 }

@@ -84,6 +84,7 @@ The app polls `/admin/api/activity` once per second and remembers each generatin
 - For a request not seen before: its contribution is `generated_tokens` if its `elapsed_seconds` is no more than the time since the previous poll, otherwise 0 (it started before the app was watching).
 - `tokensPerSec = sum of contributions / seconds since the previous poll`.
 - `nil` when no request is generating, when the request fails, or on the first poll.
+- `nil` when every generating request is new this poll (no request contributed a delta): a reply's first poll mostly covers prompt processing, so its tokens over the whole interval read far below its real speed. *(Added 2026-10-17 after first-second readings of 2–15 tok/s showed up as dips and skewed event baselines.)*
 
 No key is needed by default (see Hardware facts). If oMLX ever answers 401, Settings offers an optional key source: an env file path (default `~/.konaclaw.env`) and a variable name. Parsing follows the shell `KEY=value` form; values are taken whole, so a `#` inside a value is not treated as a comment. The response also contains `api_key`; the app decodes only the fields it needs and never logs the response body.
 

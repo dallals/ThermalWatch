@@ -59,10 +59,9 @@ private func s(_ t: Double, throttled: Bool, pressure: Int = 1, perf: Double? = 
 @Test func eventTracksTokensBeforeAndDuring() throws {
     var b = EventBuilder()
     _ = b.feed(s(0, throttled: false, tps: 50), peaks: peaks)   // older than 60 s before start: dropped
-    _ = b.feed(s(100, throttled: false, tps: 40), peaks: peaks)
-    _ = b.feed(s(101, throttled: false, tps: 42), peaks: peaks)
-    _ = b.feed(s(102, throttled: true, perf: 3000, tps: 30), peaks: peaks)
-    _ = b.feed(s(103, throttled: true, perf: 3200, tps: 28), peaks: peaks)
+    for (i, tps) in [40.0, 42, 40, 42, 41].enumerated() { _ = b.feed(s(100 + Double(i), throttled: false, tps: tps), peaks: peaks) }
+    _ = b.feed(s(105, throttled: true, perf: 3000, tps: 30), peaks: peaks)
+    for (i, tps) in [28.0, 30, 28, 29].enumerated() { _ = b.feed(s(106 + Double(i), throttled: true, perf: 3200, tps: tps), peaks: peaks) }
     let flushed = b.flush()
     let e = try #require(flushed)
     #expect(e.tokensBefore == 41)
@@ -80,4 +79,17 @@ private func s(_ t: Double, throttled: Bool, pressure: Int = 1, perf: Double? = 
     #expect(EventBuilder.clockDrop(x, peaks: peaks, busyThreshold: 0.6) == 0)
     x.gpuThermalCapped = true
     #expect(EventBuilder.clockDrop(x, peaks: peaks, busyThreshold: 0.6) == 0.75)
+}
+
+
+@Test func tokenComparisonNeedsFiveReadingsEachSide() throws {
+    // One reading just before the event (a reply's first second) is no baseline.
+    var b = EventBuilder()
+    _ = b.feed(s(0, throttled: false, tps: 15), peaks: peaks)
+    for i in 1...20 { _ = b.feed(s(Double(i), throttled: true, perf: 3000, tps: 100), peaks: peaks) }
+    let flushed = b.flush()
+    let e = try #require(flushed)
+    #expect(e.tokensBefore == nil)
+    #expect(e.tokensDuring == 100)
+    #expect(Format.tokenChange(before: e.tokensBefore, during: e.tokensDuring) == nil)
 }

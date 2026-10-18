@@ -97,3 +97,17 @@ private func sample(_ t: Double, perf: Double? = nil, state: ThrottleState = .co
     #expect(row[9] == "")
     #expect(row[14] == "2000")
 }
+
+
+@Test func seriesStartsNewSegmentAfterGap() {
+    let samples = [0.0, 1, 2, 10, 11].map { t -> Sample in
+        var s = Sample(timestamp: t)
+        s.tokensPerSec = 100
+        return s
+    }
+    let pts = Downsampler.series(samples, bucket: 1) { $0.tokensPerSec }
+    #expect(pts.map(\.segment) == [0, 0, 0, 1, 1])
+    // a single missing second is not a gap
+    let dense = [0.0, 1, 3, 4].map { t -> Sample in var s = Sample(timestamp: t); s.tokensPerSec = 1; return s }
+    #expect(Downsampler.series(dense, bucket: 1) { $0.tokensPerSec }.map(\.segment) == [0, 0, 0, 0])
+}

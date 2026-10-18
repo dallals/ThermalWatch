@@ -5,11 +5,14 @@ public struct SeriesPoint: Equatable, Sendable, Identifiable {
     public var min: Double
     public var max: Double
     public var mean: Double
-    public init(t: Double, min: Double, max: Double, mean: Double) {
+    /// Points with the same segment are joined by a line; a new segment starts after a gap in the data.
+    public var segment: Int
+    public init(t: Double, min: Double, max: Double, mean: Double, segment: Int = 0) {
         self.t = t
         self.min = min
         self.max = max
         self.mean = mean
+        self.segment = segment
     }
     public var id: Double { t }
 }
@@ -60,15 +63,22 @@ public enum TimeRange: Double, CaseIterable, Sendable, Identifiable {
 }
 
 public enum Downsampler {
-    /// Samples must be sorted by time. Samples where `value` is nil are skipped.
-    public static func series(_ samples: [Sample], bucket: Double, value: (Sample) -> Double?) -> [SeriesPoint] {
+    /// Samples must be sorted by time. Samples where `value` is nil are skipped. A gap of more than
+    /// `gapBuckets` buckets (and at least 3 s) between points starts a new segment, so the chart doesn't
+    /// draw a line across time with no data (oMLX idle, the app not running).
+    public static func series(_ samples: [Sample], bucket: Double, gapBuckets: Double = 2,
+                              value: (Sample) -> Double?) -> [SeriesPoint] {
         guard bucket > 0 else { return [] }
+        let maxGap = Swift.max(3, gapBuckets * bucket)
         var out: [SeriesPoint] = []
         var key: Double?
         var values: [Double] = []
+        var segment = 0
         func emit() {
             guard let key, !values.isEmpty else { return }
-            out.append(SeriesPoint(t: key, min: values.min()!, max: values.max()!, mean: values.reduce(0, +) / Double(values.count)))
+            if let last = out.last, key - last.t > maxGap { segment += 1 }
+            out.append(SeriesPoint(t: key, min: values.min()!, max: values.max()!,
+                                   mean: values.reduce(0, +) / Double(values.count), segment: segment))
         }
         for s in samples {
             guard let v = value(s) else { continue }
