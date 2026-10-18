@@ -92,4 +92,13 @@ public struct Sample: Codable, Equatable, Sendable {
     public func clockReflectsHeat(_ cluster: Cluster) -> Bool {
         cluster != .gpu || gpuThermalCapped == true
     }
+
+    /// Whether the GPU thermal cap is actually slowing the GPU. The cap flag can flicker on for a second
+    /// while a busy GPU still runs at full speed, so it counts only while it holds a busy GPU at least
+    /// `warmDrop` below its peak.
+    public func gpuCapLimiting(peaks: [Cluster: Double], thresholds: Thresholds = .standard) -> Bool {
+        guard gpuThermalCapped == true, let mhz = gpuMHz, let busy = gpuBusy, busy > thresholds.busy,
+              let peak = peaks[.gpu], peak > 0 else { return false }
+        return mhz < peak * (1 - thresholds.warmDrop)
+    }
 }

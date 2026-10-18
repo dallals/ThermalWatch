@@ -66,9 +66,18 @@ private func run(_ samples: [Sample], peaks: [Cluster: Double] = peaks) -> [Clas
 }
 
 @Test func gpuThermalCapIsClockLimited() {
-    var s = Sample(timestamp: 0, pressure: 0)
-    s.gpuThermalCapped = true
-    #expect(run([s])[0] == Classification(state: .throttled, clockLimited: true))
+    #expect(run([gpu(0, mhz: 562, capped: true)], peaks: [.gpu: 1620])[0] == Classification(state: .throttled, clockLimited: true))
+}
+
+@Test func gpuCapFlagAtFullSpeedIsNotClockLimited() {
+    // The cap flag flickers on for a second while the GPU still runs at ~99% of peak.
+    #expect(run([gpu(0, mhz: 1604, capped: true)], peaks: [.gpu: 1620])[0] == Classification(state: .cool, clockLimited: false))
+}
+
+@Test func gpuCapFlagWhileGPUWindsDownIsNotClockLimited() {
+    var s = gpu(0, mhz: 1480, capped: true)
+    s.gpuBusy = 0.32
+    #expect(run([s], peaks: [.gpu: 1620])[0] == Classification(state: .cool, clockLimited: false))
 }
 
 @Test func emptyPeaksNeverClockLimited() {

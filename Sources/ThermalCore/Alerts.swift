@@ -85,7 +85,7 @@ public enum AlertText {
             for (c, share) in limited.sorted(by: { $0.1 < $1.1 }) {
                 text += " \(c.label) at \(Int((share * 100).rounded()))% of peak."
             }
-            if s.gpuThermalCapped == true { text += " GPU thermally capped." }
+            if s.gpuCapLimiting(peaks: peaks) { text += " GPU thermally capped." }
             return text
         }
     }

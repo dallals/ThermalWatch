@@ -8,6 +8,15 @@ private func p(_ t: Double, pressure: Int = 0, limited: Bool = false) -> Sample 
     return s
 }
 
+/// A busy GPU that the thermal cap is holding well below its 1620 MHz peak.
+private func cappedGPU(_ s: Sample) -> Sample {
+    var s = s
+    s.gpuThermalCapped = true
+    s.gpuMHz = 562
+    s.gpuBusy = 0.99
+    return s
+}
+
 @Test func heavyAlertsOnceOnEntry() {
     var a = AlertPolicy()
     #expect(a.evaluate(p(0, pressure: 2)) == .heavyPressure)
@@ -45,17 +54,17 @@ private func p(_ t: Double, pressure: Int = 0, limited: Bool = false) -> Sample 
     #expect(AlertText.title(.sustainedClockLimit) == "Clocks held down")
     #expect(AlertText.body(kind: .sustainedClockLimit, sample: l, peaks: [.performance: 4000]) == "Clocks held down for 30 s. Perf at 78% of peak.")
 
-    var g = p(0, limited: true)
-    g.gpuThermalCapped = true
-    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [:]) == "Clocks held down for 30 s. GPU thermally capped.")
+    var g = cappedGPU(p(0, limited: true))
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [.gpu: 1620]) == "Clocks held down for 30 s. GPU at 35% of peak. GPU thermally capped.")
+    g.gpuMHz = 1600  // flag on, but the GPU is still at full speed
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [.gpu: 1620]) == "Clocks held down for 30 s.")
 }
 
 @Test func alertTextIgnoresIdleClusters() {
-    var g = p(0, limited: true)
-    g.gpuThermalCapped = true
+    var g = cappedGPU(p(0, limited: true))
     g.perfMHz = 1200
     g.perfBusy = 0.1
-    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [.performance: 4000]) == "Clocks held down for 30 s. GPU thermally capped.")
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: g, peaks: [.performance: 4000, .gpu: 1620]) == "Clocks held down for 30 s. GPU at 35% of peak. GPU thermally capped.")
 }
 
 @Test func iconColors() {
@@ -71,17 +80,15 @@ private func p(_ t: Double, pressure: Int = 0, limited: Bool = false) -> Sample 
 }
 
 @Test func sustainedTextNamesRealCause() {
-    var a = p(0, limited: true)
+    var a = cappedGPU(p(0, limited: true))
     a.superMHz = 4010; a.superBusy = 1.0
     a.perfMHz = 4380; a.perfBusy = 1.0
-    a.gpuThermalCapped = true
-    let peaks: [Cluster: Double] = [.superCores: 4608, .performance: 4380]
-    #expect(AlertText.body(kind: .sustainedClockLimit, sample: a, peaks: peaks) == "Clocks held down for 30 s. GPU thermally capped.")
+    let peaks: [Cluster: Double] = [.superCores: 4608, .performance: 4380, .gpu: 1620]
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: a, peaks: peaks) == "Clocks held down for 30 s. GPU at 35% of peak. GPU thermally capped.")
 
-    var c = p(0, limited: true)
+    var c = cappedGPU(p(0, limited: true))
     c.perfMHz = 3120; c.perfBusy = 0.95
-    c.gpuThermalCapped = true
-    #expect(AlertText.body(kind: .sustainedClockLimit, sample: c, peaks: [.performance: 4000]) == "Clocks held down for 30 s. Perf at 78% of peak. GPU thermally capped.")
+    #expect(AlertText.body(kind: .sustainedClockLimit, sample: c, peaks: [.performance: 4000, .gpu: 1620]) == "Clocks held down for 30 s. GPU at 35% of peak. Perf at 78% of peak. GPU thermally capped.")
 }
 
 @Test func heavyPendingDeliveredAfterInterval() {

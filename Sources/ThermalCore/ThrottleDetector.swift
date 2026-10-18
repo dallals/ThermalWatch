@@ -30,7 +30,7 @@ public struct ThrottleDetector: Sendable {
 
     /// `recent` holds earlier samples, oldest first. `peaks` are the reference peaks in MHz.
     public func classify(current: Sample, recent: [Sample], peaks: [Cluster: Double]) -> Classification {
-        var limited = current.gpuThermalCapped == true
+        var limited = current.gpuCapLimiting(peaks: peaks, thresholds: thresholds)
         var warm = false
         for cluster in Cluster.allCases where current.clockReflectsHeat(cluster) {
             guard let mhz = current.mhz(cluster), let busy = current.busy(cluster), busy > thresholds.busy,
