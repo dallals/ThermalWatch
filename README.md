@@ -8,13 +8,13 @@ can overlay tokens/sec from a local [oMLX](https://github.com/jundot/omlx) serve
 
 Everything runs locally. No `sudo`, no helper daemon, no network access beyond an optional loopback call to oMLX.
 
-<img src="docs/images/popover.png" width="386" alt="ThermalWatch menu-bar popover showing state Cool, nominal pressure, Super, Perf and GPU clocks as a share of peak, temperatures, fan speed, power, oMLX status and time throttled today">
+<img src="docs/images/popover.png" width="390" alt="ThermalWatch menu-bar popover showing state Cool, nominal pressure, Super, Perf and GPU clocks as a share of peak, temperatures, fan speed, power, oMLX status and time throttled today">
 
-*The menu-bar popover: current state, clock speed of each part as a share of peak, temperatures, fans, power and oMLX status.*
+*The menu-bar popover: current state, clock speed of each part as a share of peak, temperatures, fans, power, oMLX status, and the last 10 minutes with throttled stretches shaded.*
 
 ![ThermalWatch history window showing ten minutes of clocks, temperatures, fans, power and oMLX tokens/sec, with throttled stretches shaded orange and a list of throttle events](docs/images/history-window.png)
 
-*Ten minutes of history on an M5 Max. A burst of heavy work at 4:20 PM pushed both dies to about 95 °C and caused two short throttle events, shaded on every chart and listed on the right.*
+*Ten minutes of history on an M5 Max. Two bursts of heavy CPU and GPU work while oMLX was generating pushed both dies to about 100 °C and held clocks down (orange). macOS raised thermal pressure to Moderate (yellow) just after the second, while the chip cooled.*
 
 ## Features
 
