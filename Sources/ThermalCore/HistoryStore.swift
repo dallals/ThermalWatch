@@ -193,6 +193,36 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
         }
     }
 
+    /// Rewrites every sample's state and clock-limited flag and replaces all events, in one transaction.
+    /// Used after the detection rules change, so stored history reads as if recorded under the new rules.
+    public func replaceClassification(samples: [Sample], events: [ThrottleEvent]) throws {
+        lock.lock(); defer { lock.unlock() }
+        try transaction {
+            let up = try prepare("UPDATE samples SET state = ?, limited = ? WHERE ts = ?")
+            defer { sqlite3_finalize(up) }
+            for s in samples {
+                sqlite3_reset(up)
+                bindInt(up, 1, s.state.rawValue)
+                bindInt(up, 2, s.clockLimited ? 1 : 0)
+                bindDouble(up, 3, s.timestamp)
+                try step(up)
+            }
+            try exec("DELETE FROM events")
+            let ins = try prepare("INSERT INTO events VALUES (?,?,?,?,?,?)")
+            defer { sqlite3_finalize(ins) }
+            for e in events {
+                sqlite3_reset(ins)
+                bindDouble(ins, 1, e.start)
+                bindDouble(ins, 2, e.end)
+                bindInt(ins, 3, e.worstPressure)
+                bindDouble(ins, 4, e.maxClockDrop)
+                bindDouble(ins, 5, e.tokensBefore)
+                bindDouble(ins, 6, e.tokensDuring)
+                try step(ins)
+            }
+        }
+    }
+
     // MARK: Load tests
 
     public func insert(_ result: LoadTestResult) throws -> Int64 {

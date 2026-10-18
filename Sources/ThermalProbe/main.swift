@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ThermalCore
 import ThermalSensors
@@ -8,6 +9,37 @@ func show(_ v: Double?, _ unit: String, digits: Int = 0) -> String {
 
 func check(_ label: String, _ ok: Bool) {
     print("  \(ok ? "OK  " : "WARN") \(label)")
+}
+
+if CommandLine.arguments.contains("--reclassify-history") {
+    reclassifyHistory()
+    exit(0)
+}
+
+/// Rewrites stored states and events under the current detection rules. The app must not be running,
+/// since it writes to the same database.
+func reclassifyHistory() {
+    if !NSRunningApplication.runningApplications(withBundleIdentifier: "com.sammydallal.thermalwatch").isEmpty {
+        print("ThermalWatch is running; quit it first.")
+        exit(1)
+    }
+    do {
+        let store = try HistoryStore(path: try HistoryStore.defaultPath())
+        let samples = try store.samples(from: 0, to: Date().timeIntervalSince1970 + 1)
+        let before = try store.events(from: 0, to: .greatestFiniteMagnitude)
+        let r = Reclassify.run(samples, tableMax: PMGR.readTables().maxByCluster)
+        let changed = zip(samples.sorted { $0.timestamp < $1.timestamp }, r.samples)
+            .filter { $0.state != $1.state || $0.clockLimited != $1.clockLimited }.count
+        try store.replaceClassification(samples: r.samples, events: r.events)
+        print("\(samples.count) samples, \(changed) reclassified; events \(before.count) -> \(r.events.count)")
+        for e in r.events.reversed() {
+            let start = Date(timeIntervalSince1970: e.start).formatted(date: .omitted, time: .standard)
+            print("  \(start)  \(Int(e.duration))s  pressure \(e.worstPressure)  clocks -\(Int((e.maxClockDrop * 100).rounded()))%")
+        }
+    } catch {
+        print("reclassify failed: \(error)")
+        exit(1)
+    }
 }
 
 let tables = PMGR.readTables()
