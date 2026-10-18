@@ -20,8 +20,9 @@ Everything runs locally. No `sudo`, no helper daemon, no network access beyond a
 
 - **Always-on glance** — a chip icon in the menu bar with a colored dot (green / yellow / orange / red). Optionally shows the hottest die temperature next to it.
 - **Popover** — current state, thermal pressure, clock speed of each core group and the GPU as a share of peak, CPU/GPU temperatures, fan speeds, system power, oMLX tokens/sec, a 10-minute sparkline, and time throttled today.
-- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export.
+- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. Events shorter than 3 seconds stay shaded on the charts but are left out of the list.
 - **Alerts** — a notification when thermal pressure reaches Heavy, or when clocks have been held down for 30 seconds (at most one every 10 minutes).
+- **Behaves like a normal app while a window is open** — opening the history, load-test or settings window gives ThermalWatch a Dock icon and its own menu bar; closing the last one returns it to the menu bar and hands focus back to the app you were in.
 - **Built-in load test** — a CPU, GPU or CPU + GPU burn for 5, 10 or 20 minutes that records how fast the chip throttles, how far clocks drop, and peak temperatures, so you can compare runs (desk vs. cooling stand, Low Power Mode, and so on). It stops automatically if a die passes 105 °C, and warns you first if oMLX is generating.
 
 ## How throttling is detected
@@ -31,12 +32,17 @@ Each sample is one of **Cool**, **Warm** or **Throttled**:
 | State | Rule |
 |---|---|
 | **Throttled** | macOS thermal pressure is Moderate or higher, **or** clocks are being held down. |
-| Clocks held down | A core group or the GPU has been busy (over 60%) for at least 5 seconds but is running below 85% of its peak, **or** the GPU's own thermal limiter (`GPU_CLTM`) is engaged. |
-| **Warm** | A die is above 95 °C, or clocks are 5% or more below peak. |
+| Clocks held down | A CPU core group has been busy (over 60%) for at least 5 seconds but is running below 85% of its peak, **or** the GPU's own thermal limiter (`GPU_CLTM`) is holding a busy GPU 5% or more below its peak. |
+| **Warm** | A die is above 95 °C, or a busy core group is 5% or more below peak. |
 | **Cool** | Neither of the above. |
 
 "Peak" is the fastest clock seen while busy over the last 7 days, falling back to the chip's rated maximum.
 A throttle event ends 10 seconds after the last throttled sample.
+
+The GPU is judged only through its thermal limiter, not its clock. Its clock follows demand: between bursts
+of work, such as the gaps in an LLM reply, it drops to its lowest state while still counted as busy, which
+would otherwise look like heavy throttling. The limiter flag on its own is also noisy (it can switch on for a
+second while the GPU runs at full speed), so it counts only while it is actually slowing a busy GPU.
 
 ### Reading the colors
 
@@ -64,7 +70,7 @@ All sources work without root:
 | GPU power | IOReport Energy Model |
 | Tokens/sec | oMLX `GET /admin/api/activity` (optional) |
 
-IOReport and SMC are undocumented, so a macOS update can break individual readings. When a source fails, ThermalWatch keeps running and lists it under "Unavailable" in the popover.
+IOReport and SMC are undocumented, so a macOS update can break individual readings. When a source fails, ThermalWatch keeps running and lists it under "Unavailable" in the popover. The SMC power keys occasionally report a small negative value; those readings are dropped.
 
 ## Requirements
 
@@ -94,6 +100,14 @@ There is also a small command-line probe that prints raw sensor readings:
 swift run thermalwatch-probe
 ```
 
+After a change to the detection rules, the probe can replay the stored history under the new rules,
+rewriting each sample's state and rebuilding the event list. Raw sensor readings are left untouched.
+Quit ThermalWatch first, since it writes to the same database:
+
+```bash
+swift run thermalwatch-probe --reclassify-history
+```
+
 ## Settings
 
 - Launch at login (on by default)
@@ -108,11 +122,11 @@ History is stored in SQLite at `~/Library/Application Support/ThermalWatch/histo
 
 | Target | Contents |
 |---|---|
-| `ThermalCore` | Sample model, throttle detection, events, alerts, history store, downsampling, CSV export |
+| `ThermalCore` | Sample model, throttle detection, events, alerts, history store and reclassification, downsampling, CSV export |
 | `ThermalSensors` | IOReport, SMC, pmgr, thermal pressure and oMLX readers |
 | `ThermalLoad` | CPU and Metal GPU load generators for the load test |
 | `ThermalWatchApp` | SwiftUI menu-bar app, charts, settings and load-test UI |
-| `ThermalProbe` | `thermalwatch-probe` command-line tool |
+| `ThermalProbe` | `thermalwatch-probe` command-line tool: sensor check and history reclassification |
 
 The design spec and implementation plan are in [`docs/`](docs/).
 
