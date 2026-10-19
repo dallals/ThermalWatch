@@ -20,7 +20,12 @@ Everything runs locally. No `sudo`, no helper daemon, no network access beyond a
 
 - **Always-on glance** — a chip icon in the menu bar with a colored dot (green / yellow / orange / red). Optionally shows the hottest die temperature next to it.
 - **Popover** — current state, thermal pressure, clock speed of each core group and the GPU as a share of peak, CPU/GPU temperatures, fan speeds, system power, oMLX tokens/sec, a 10-minute sparkline, and time throttled today.
-- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. Each event shows its worst pressure level and the cluster that slowed most, with that cluster's typical drop (the median over its busy seconds) beside its single worst second, e.g. "Heavy · GPU −45% typical, −77% worst". Events shorter than 3 seconds stay shaded on the charts but are left out of the list.
+- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. Chart lines break where there is no data (oMLX idle, ThermalWatch not running) instead of drawing straight across the gap. Clicking an event moves the charts to it. Each event shows:
+  - its start, duration and worst pressure level;
+  - the part that slowed most, with its typical drop (the median over its busy seconds) beside its single worst second, e.g. "Heavy · GPU −58% typical, −77% worst";
+  - when oMLX was generating, tokens/sec in the minute before the event against during it, e.g. "41 → 29 tok/s, −29%". Each side needs at least 5 readings, so a reply that starts mid-event shows no comparison.
+
+  Events shorter than 3 seconds stay shaded on the charts but are left out of the list.
 - **Alerts** — a notification when thermal pressure reaches Heavy, or when clocks have been held down for 30 seconds (at most one every 10 minutes).
 - **Behaves like a normal app while a window is open** — opening the history, load-test or settings window gives ThermalWatch a Dock icon and its own menu bar; closing the last one returns it to the menu bar and hands focus back to the app you were in.
 - **Built-in load test** — a CPU, GPU or CPU + GPU burn for 5, 10 or 20 minutes that records how fast the chip throttles, how far clocks drop, and peak temperatures, so you can compare runs (desk vs. cooling stand, Low Power Mode, and so on). It stops automatically if a die passes 105 °C, and warns you first if oMLX is generating.
@@ -68,7 +73,7 @@ All sources work without root:
 | Frequency tables | `pmgr` `voltage-states*` properties in the IORegistry |
 | Temperatures, fans, CPU and system power | AppleSMC user client |
 | GPU power | IOReport Energy Model |
-| Tokens/sec | oMLX `GET /admin/api/activity` (optional) |
+| Tokens/sec | oMLX `GET /admin/api/activity` (optional). The first poll of each reply is skipped, since it mostly covers prompt processing and would read far too low. |
 
 IOReport and SMC are undocumented, so a macOS update can break individual readings. When a source fails, ThermalWatch keeps running and lists it under "Unavailable" in the popover. The SMC power keys occasionally report a small negative value; those readings are dropped.
 
