@@ -34,7 +34,7 @@ func reclassifyHistory() {
         print("\(samples.count) samples, \(changed) reclassified; events \(before.count) -> \(r.events.count)")
         for e in r.events.reversed() {
             let start = Date(timeIntervalSince1970: e.start).formatted(date: .omitted, time: .standard)
-            print("  \(start)  \(Int(e.duration))s  pressure \(e.worstPressure)  clocks -\(Int((e.maxClockDrop * 100).rounded()))%")
+            print("  \(start)  \(Int(e.duration))s  pressure \(e.worstPressure)  \(Format.clockDrop(e))")
         }
     } catch {
         print("reclassify failed: \(error)")

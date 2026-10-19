@@ -20,7 +20,7 @@ Everything runs locally. No `sudo`, no helper daemon, no network access beyond a
 
 - **Always-on glance** — a chip icon in the menu bar with a colored dot (green / yellow / orange / red). Optionally shows the hottest die temperature next to it.
 - **Popover** — current state, thermal pressure, clock speed of each core group and the GPU as a share of peak, CPU/GPU temperatures, fan speeds, system power, oMLX tokens/sec, a 10-minute sparkline, and time throttled today.
-- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. Events shorter than 3 seconds stay shaded on the charts but are left out of the list.
+- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. Each event shows its worst pressure level and the cluster that slowed most, with that cluster's typical drop (the median over its busy seconds) beside its single worst second, e.g. "Heavy · GPU −45% typical, −77% worst". Events shorter than 3 seconds stay shaded on the charts but are left out of the list.
 - **Alerts** — a notification when thermal pressure reaches Heavy, or when clocks have been held down for 30 seconds (at most one every 10 minutes).
 - **Behaves like a normal app while a window is open** — opening the history, load-test or settings window gives ThermalWatch a Dock icon and its own menu bar; closing the last one returns it to the menu bar and hands focus back to the app you were in.
 - **Built-in load test** — a CPU, GPU or CPU + GPU burn for 5, 10 or 20 minutes that records how fast the chip throttles, how far clocks drop, and peak temperatures, so you can compare runs (desk vs. cooling stand, Low Power Mode, and so on). It stops automatically if a die passes 105 °C, and warns you first if oMLX is generating.
@@ -102,6 +102,7 @@ swift run thermalwatch-probe
 
 After a change to the detection rules, the probe can replay the stored history under the new rules,
 rewriting each sample's state and rebuilding the event list. Raw sensor readings are left untouched.
+Events recorded before the typical drop existed show only the worst drop until history is replayed this way.
 Quit ThermalWatch first, since it writes to the same database:
 
 ```bash

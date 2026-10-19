@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import ThermalCore
 
@@ -113,4 +114,34 @@ private func full(_ t: Double) -> Sample {
     #expect(Set(ids).count == batches)
     #expect(try store.samples(from: 0, to: 100_000).count == batches * perBatch)
     #expect(try store.loadTests().count == batches)
+}
+
+@Test func eventsKeepTypicalDropAndCluster() throws {
+    let store = try HistoryStore(path: tempPath())
+    let e = ThrottleEvent(start: 1, end: 9, worstPressure: 2, maxClockDrop: 0.77, tokensBefore: nil, tokensDuring: nil,
+                          typicalClockDrop: 0.45, dropCluster: .gpu)
+    try store.insert(e)
+    #expect(try store.events(from: 0, to: 10) == [e])
+    try store.replaceClassification(samples: [], events: [e])
+    #expect(try store.events(from: 0, to: 10) == [e])
+}
+
+@Test func olderEventsTableGainsTheNewColumns() throws {
+    let path = tempPath()
+    var db: OpaquePointer?
+    #expect(sqlite3_open(path, &db) == SQLITE_OK)
+    #expect(sqlite3_exec(db, """
+        CREATE TABLE events (start REAL PRIMARY KEY, end REAL NOT NULL, worst INTEGER NOT NULL, drop_frac REAL NOT NULL,
+          tps_before REAL, tps_during REAL);
+        INSERT INTO events VALUES (1, 9, 2, 0.77, NULL, NULL);
+        """, nil, nil, nil) == SQLITE_OK)
+    sqlite3_close(db)
+    let store = try HistoryStore(path: path)
+    let old = try #require(try store.events(from: 0, to: 10).first)
+    #expect(old.maxClockDrop == 0.77)
+    #expect(old.typicalClockDrop == nil)
+    #expect(old.dropCluster == nil)
+    try store.insert(ThrottleEvent(start: 20, end: 30, worstPressure: 1, maxClockDrop: 0.3, tokensBefore: nil, tokensDuring: nil,
+                                   typicalClockDrop: 0.2, dropCluster: .performance))
+    #expect(try store.events(from: 19, to: 31).first?.typicalClockDrop == 0.2)
 }

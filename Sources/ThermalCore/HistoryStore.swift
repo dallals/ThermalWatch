@@ -41,10 +41,22 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
               fans TEXT NOT NULL, tps REAL, state INTEGER NOT NULL, limited INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS events (
               start REAL PRIMARY KEY, end REAL NOT NULL, worst INTEGER NOT NULL, drop_frac REAL NOT NULL,
-              tps_before REAL, tps_during REAL);
+              tps_before REAL, tps_during REAL, typ_drop REAL, drop_cluster TEXT);
             CREATE TABLE IF NOT EXISTS load_tests (
               id INTEGER PRIMARY KEY AUTOINCREMENT, started REAL NOT NULL, json TEXT NOT NULL);
             """)
+        // Histories recorded before the typical drop existed lack its columns; old events read as nil.
+        let cols = try columns(of: "events")
+        if !cols.contains("typ_drop") { try exec("ALTER TABLE events ADD COLUMN typ_drop REAL;") }
+        if !cols.contains("drop_cluster") { try exec("ALTER TABLE events ADD COLUMN drop_cluster TEXT;") }
+    }
+
+    private func columns(of table: String) throws -> Set<String> {
+        let st = try prepare("PRAGMA table_info(\(table))")
+        defer { sqlite3_finalize(st) }
+        var out: Set<String> = []
+        while try stepRow(st) { out.insert(text(st, 1)) }
+        return out
     }
 
     deinit { sqlite3_close(db) }
@@ -153,20 +165,28 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
 
     public func insert(_ e: ThrottleEvent) throws {
         lock.lock(); defer { lock.unlock() }
-        let st = try prepare("INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?)")
+        let st = try prepare("INSERT OR REPLACE INTO events (\(Self.eventColumns)) VALUES (?,?,?,?,?,?,?,?)")
         defer { sqlite3_finalize(st) }
+        bindEvent(st, e)
+        try step(st)
+    }
+
+    private static let eventColumns = "start, end, worst, drop_frac, tps_before, tps_during, typ_drop, drop_cluster"
+
+    private func bindEvent(_ st: OpaquePointer, _ e: ThrottleEvent) {
         bindDouble(st, 1, e.start)
         bindDouble(st, 2, e.end)
         bindInt(st, 3, e.worstPressure)
         bindDouble(st, 4, e.maxClockDrop)
         bindDouble(st, 5, e.tokensBefore)
         bindDouble(st, 6, e.tokensDuring)
-        try step(st)
+        bindDouble(st, 7, e.typicalClockDrop)
+        if let c = e.dropCluster { bindText(st, 8, c.rawValue) } else { sqlite3_bind_null(st, 8) }
     }
 
     public func events(from start: Double, to end: Double) throws -> [ThrottleEvent] {
         lock.lock(); defer { lock.unlock() }
-        let st = try prepare("SELECT * FROM events WHERE end >= ? AND start <= ? ORDER BY start DESC")
+        let st = try prepare("SELECT \(Self.eventColumns) FROM events WHERE end >= ? AND start <= ? ORDER BY start DESC")
         defer { sqlite3_finalize(st) }
         bindDouble(st, 1, start)
         bindDouble(st, 2, end)
@@ -174,7 +194,9 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
         while try stepRow(st) {
             out.append(ThrottleEvent(start: sqlite3_column_double(st, 0), end: sqlite3_column_double(st, 1),
                                      worstPressure: int(st, 2) ?? 0, maxClockDrop: double(st, 3) ?? 0,
-                                     tokensBefore: double(st, 4), tokensDuring: double(st, 5)))
+                                     tokensBefore: double(st, 4), tokensDuring: double(st, 5),
+                                     typicalClockDrop: double(st, 6),
+                                     dropCluster: sqlite3_column_type(st, 7) == SQLITE_NULL ? nil : Cluster(rawValue: text(st, 7))))
         }
         return out
     }
@@ -208,16 +230,11 @@ public final class HistoryStore: HistoryWriting, @unchecked Sendable {
                 try step(up)
             }
             try exec("DELETE FROM events")
-            let ins = try prepare("INSERT INTO events VALUES (?,?,?,?,?,?)")
+            let ins = try prepare("INSERT INTO events (\(Self.eventColumns)) VALUES (?,?,?,?,?,?,?,?)")
             defer { sqlite3_finalize(ins) }
             for e in events {
                 sqlite3_reset(ins)
-                bindDouble(ins, 1, e.start)
-                bindDouble(ins, 2, e.end)
-                bindInt(ins, 3, e.worstPressure)
-                bindDouble(ins, 4, e.maxClockDrop)
-                bindDouble(ins, 5, e.tokensBefore)
-                bindDouble(ins, 6, e.tokensDuring)
+                bindEvent(ins, e)
                 try step(ins)
             }
         }

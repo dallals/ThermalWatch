@@ -13,6 +13,15 @@ public enum Format {
         return "\(Int((fraction * 100).rounded()))%"
     }
 
+    /// An event's clock drop: the typical drop beside the worst second, e.g. "GPU −45% typical, −77% worst".
+    public static func clockDrop(_ e: ThrottleEvent) -> String {
+        guard e.maxClockDrop > 0 else { return "clocks not reduced" }
+        let who = e.dropCluster?.label ?? "clocks"
+        let worst = "−\(percent(e.maxClockDrop)) worst"
+        guard let typical = e.typicalClockDrop else { return "\(who) \(worst)" }
+        return "\(who) −\(percent(typical)) typical, \(worst)"
+    }
+
     public static func temp(_ c: Double?) -> String {
         c.flatMap { $0.isFinite ? "\(Int($0.rounded()))°" : nil } ?? dash
     }

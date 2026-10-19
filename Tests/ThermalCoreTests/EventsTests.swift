@@ -93,3 +93,52 @@ private func s(_ t: Double, throttled: Bool, pressure: Int = 1, perf: Double? = 
     #expect(e.tokensDuring == 100)
     #expect(Format.tokenChange(before: e.tokensBefore, during: e.tokensDuring) == nil)
 }
+
+@Test func eventReportsTypicalDropBesideWorst() throws {
+    // Perf at 3000, 2000, 2000, 2000, 1000 MHz of a 4000 peak: drops .25 .5 .5 .5 .75.
+    var b = EventBuilder()
+    for (i, mhz) in [3000.0, 2000, 2000, 2000, 1000].enumerated() { _ = b.feed(s(Double(i), throttled: true, perf: mhz), peaks: peaks) }
+    let open = try #require(b.current)
+    #expect(open.typicalClockDrop == 0.5)            // the open event shows it too
+    let flushed = b.flush()
+    let e = try #require(flushed)
+    #expect(e.maxClockDrop == 0.75)
+    #expect(e.typicalClockDrop == 0.5)
+    #expect(e.dropCluster == .performance)
+}
+
+@Test func typicalDropNeedsFiveBusyReadings() throws {
+    var b = EventBuilder()
+    for t in 0..<4 { _ = b.feed(s(Double(t), throttled: true, perf: 2000), peaks: peaks) }
+    for t in 4..<8 { _ = b.feed(s(Double(t), throttled: true, perf: 800, busy: 0.1), peaks: peaks) }   // idle: not a reading
+    let flushed = b.flush()
+    let e = try #require(flushed)
+    #expect(e.maxClockDrop == 0.5)
+    #expect(e.typicalClockDrop == nil)
+    #expect(e.dropCluster == .performance)
+}
+
+@Test func typicalDropFollowsTheClusterWithTheWorstDrop() throws {
+    // Perf sits 25% down the whole time; the GPU is capped to 75% down for a stretch.
+    var b = EventBuilder()
+    for t in 0..<10 {
+        var x = s(Double(t), throttled: true, perf: 3000)
+        if t >= 4 { x.gpuMHz = 400; x.gpuBusy = 0.9; x.gpuThermalCapped = true }
+        _ = b.feed(x, peaks: peaks)
+    }
+    let flushed = b.flush()
+    let e = try #require(flushed)
+    #expect(e.dropCluster == .gpu)
+    #expect(e.maxClockDrop == 0.75)
+    #expect(e.typicalClockDrop == 0.75)
+}
+
+@Test func pressureOnlyEventHasNoDropCluster() throws {
+    var b = EventBuilder()
+    for t in 0..<6 { _ = b.feed(s(Double(t), throttled: true), peaks: peaks) }
+    let flushed = b.flush()
+    let e = try #require(flushed)
+    #expect(e.maxClockDrop == 0)
+    #expect(e.dropCluster == nil)
+    #expect(e.typicalClockDrop == nil)
+}

@@ -60,6 +60,15 @@ private func sample(_ t: Double, perf: Double? = nil, state: ThrottleState = .co
     #expect(Format.ghz(4420) == "4.42 GHz")
     #expect(Format.ghz(nil) == "—")
     #expect(Format.percent(0.913) == "91%")
+    let drop = ThrottleEvent(start: 0, end: 9, worstPressure: 2, maxClockDrop: 0.77, tokensBefore: nil, tokensDuring: nil,
+                             typicalClockDrop: 0.454, dropCluster: .gpu)
+    #expect(Format.clockDrop(drop) == "GPU −45% typical, −77% worst")
+    var noTypical = drop
+    noTypical.typicalClockDrop = nil
+    #expect(Format.clockDrop(noTypical) == "GPU −77% worst")
+    noTypical.dropCluster = nil                         // events stored before the cluster was recorded
+    #expect(Format.clockDrop(noTypical) == "clocks −77% worst")
+    #expect(Format.clockDrop(ThrottleEvent(start: 0, end: 9, worstPressure: 1, maxClockDrop: 0, tokensBefore: nil, tokensDuring: nil)) == "clocks not reduced")
     #expect(Format.temp(78.4) == "78°")
     #expect(Format.watts(41.6) == "42 W")
     #expect(Format.grouped(999) == "999")

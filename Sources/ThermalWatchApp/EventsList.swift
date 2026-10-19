@@ -39,7 +39,7 @@ private struct EventRow: View {
                 Spacer()
                 Text(Format.duration(event.duration)).monospacedDigit()
             }
-            Text("\(PressureLevel(rawValue: event.worstPressure)?.label ?? Format.dash) · clocks −\(Format.percent(event.maxClockDrop))")
+            Text("\(PressureLevel(rawValue: event.worstPressure)?.label ?? Format.dash) · \(Format.clockDrop(event))")
                 .font(.caption).foregroundStyle(.secondary)
             if let change = Format.tokenChange(before: event.tokensBefore, during: event.tokensDuring) {
                 Text(change).font(.caption)
