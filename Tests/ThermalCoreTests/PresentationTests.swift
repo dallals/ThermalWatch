@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ThermalCore
 
@@ -35,9 +36,44 @@ private func sample(_ t: Double, perf: Double? = nil, state: ThrottleState = .co
     ])
 }
 
+@Test func mergedBandsJoinSameColorAcrossShortGaps() {
+    let bands = [
+        StateBand(start: 0, end: 2, pressure: 1, clockLimited: false),
+        StateBand(start: 3, end: 5, pressure: 1, clockLimited: false),
+        StateBand(start: 5, end: 6, pressure: 2, clockLimited: false),
+        StateBand(start: 20, end: 21, pressure: 2, clockLimited: true),
+    ]
+    #expect(Downsampler.merged(bands, gap: 2) == [
+        StateBand(start: 0, end: 5, pressure: 1, clockLimited: false),
+        StateBand(start: 5, end: 6, pressure: 2, clockLimited: false),
+        StateBand(start: 20, end: 21, pressure: 2, clockLimited: true),
+    ])
+    #expect(Downsampler.merged(bands, gap: 20, sameKind: { _, _ in true }) == [StateBand(start: 0, end: 21, pressure: 1, clockLimited: false)])
+}
+
+@Test func timeTicksLandOnRoundClockTimes() {
+    let utc = TimeZone(identifier: "UTC")!
+    // 10 minutes starting 90 s past the hour -> a tick every 2 min from 2 min past.
+    let start = 1_700_000_000.0 - 1_700_000_000.0.truncatingRemainder(dividingBy: 3600) + 90
+    let ticks = TimeTicks.ticks(in: start...(start + 600), timeZone: utc)
+    #expect(ticks.first == start + 30)
+    #expect(ticks.count == 5)
+    #expect(zip(ticks, ticks.dropFirst()).allSatisfy { $1 - $0 == 120 })
+    #expect(TimeTicks.stride(span: 3600) == 600)
+    #expect(TimeTicks.stride(span: 86_400) == 14_400)
+    #expect(TimeTicks.stride(span: 604_800) == 86_400)
+}
+
+@Test func niceScaleHugsDataOnRoundNumbers() {
+    #expect(NiceScale.scale(min: 35, max: 97, includesZero: false) == .init(lower: 25, upper: 100, step: 25))
+    #expect(NiceScale.scale(min: 0, max: 5350, includesZero: true) == .init(lower: 0, upper: 6000, step: 2000))
+    #expect(NiceScale.scale(min: 3, max: 100, includesZero: true).ticks == [0, 50, 100])
+    #expect(NiceScale.scale(min: 0, max: 0, includesZero: true).upper > 0)
+}
+
 @Test func timeRangeBuckets() {
-    #expect(TimeRange.tenMinutes.bucketSeconds == 1)
-    #expect(TimeRange.week.bucketSeconds == 600)
+    #expect(TimeRange.tenMinutes.bucketSeconds == 2)
+    #expect(TimeRange.week.bucketSeconds == 1800)
     #expect(TimeRange.day.label == "24 h")
 }
 

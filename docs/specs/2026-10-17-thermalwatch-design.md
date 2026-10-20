@@ -153,7 +153,7 @@ Unavailable values show "—".
 - Export the visible range to CSV.
 - A source that is unavailable shows a note on its chart ("Clock data unavailable").
 
-Ranges longer than 1 hour are downsampled for drawing (min/max per bucket), so the 7-day view stays fast.
+Every range is drawn from buckets of about 300 per range (2 s, 10 s, 1 min, 4 min, 30 min): the line is the bucket mean, with its min/max as a faint band. Time ticks fall on round clock times and only the bottom chart is labelled; y-axes end on round numbers and share one label width so the plots line up. Throttle bands closer than two buckets are joined. Hovering any chart draws a crosshair through all of them and the legends show the values at that time. Series keep one color per part across charts (CPU blue, Super pink, GPU green, tokens purple, System power a gray fill), none of them yellow/orange/red, which stay reserved for throttle shading.
 
 ### Alerts
 

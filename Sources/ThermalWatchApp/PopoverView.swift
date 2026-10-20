@@ -105,11 +105,11 @@ private struct Sparkline: View {
     }
 
     var body: some View {
-        let bands = Downsampler.bands(samples)
+        let bands = Downsampler.merged(Downsampler.bands(samples), gap: 4)
         Chart {
             ForEach(bands) { band in
                 RectangleMark(xStart: .value("Start", band.start), xEnd: .value("End", band.end))
-                    .foregroundStyle(StatusColor.color(pressure: band.pressure, clockLimited: band.clockLimited, warm: false).swiftUIColor.opacity(0.25))
+                    .foregroundStyle(band.color.swiftUIColor.opacity(0.25))
             }
             ForEach(samples, id: \.timestamp) { s in
                 if let pct = share(s) {

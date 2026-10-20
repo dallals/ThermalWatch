@@ -51,13 +51,15 @@ public enum TimeRange: Double, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Ranges over an hour are drawn from buckets (spec "Window").
+    /// Bucket size for drawing: about 300-360 points across the range, so lines read as a trend
+    /// instead of second-by-second noise; each bucket's min/max is still drawn as a faint envelope.
     public var bucketSeconds: Double {
         switch self {
-        case .tenMinutes, .hour: 1
-        case .sixHours: 30
-        case .day: 120
-        case .week: 600
+        case .tenMinutes: 2
+        case .hour: 10
+        case .sixHours: 60
+        case .day: 240
+        case .week: 1800
         }
     }
 }
@@ -115,5 +117,72 @@ public enum Downsampler {
             open = true
         }
         return out
+    }
+
+    /// Joins bands that would draw as the same color and are at most `gap` seconds apart, so a stretch of
+    /// throttling reads as one block instead of slivers split by one-sample blips.
+    public static func merged(_ bands: [StateBand], gap: Double,
+                              sameKind: (StateBand, StateBand) -> Bool = { $0.color == $1.color }) -> [StateBand] {
+        var out: [StateBand] = []
+        for band in bands {
+            if var last = out.last, sameKind(last, band), band.start - last.end <= gap {
+                last.end = Swift.max(last.end, band.end)
+                out[out.count - 1] = last
+            } else {
+                out.append(band)
+            }
+        }
+        return out
+    }
+}
+
+extension StateBand {
+    public var color: StatusColor { StatusColor.color(pressure: pressure, clockLimited: clockLimited, warm: false) }
+}
+
+/// Evenly spaced time-axis ticks on round local clock times (every 2 min, 10 min, 1 h, ...).
+public enum TimeTicks {
+    static let strides: [Double] = [60, 120, 300, 600, 900, 1800, 3600, 7200, 10_800, 14_400, 21_600, 43_200, 86_400]
+
+    /// The smallest round stride that gives at most `maxTicks` ticks across `span` seconds.
+    public static func stride(span: Double, maxTicks: Int = 7) -> Double {
+        strides.first { span / $0 <= Double(maxTicks) } ?? (span / Double(maxTicks) / 86_400).rounded(.up) * 86_400
+    }
+
+    public static func ticks(in domain: ClosedRange<Double>, maxTicks: Int = 7, timeZone: TimeZone = .current) -> [Double] {
+        let step = stride(span: domain.upperBound - domain.lowerBound, maxTicks: maxTicks)
+        let offset = Double(timeZone.secondsFromGMT(for: Date(timeIntervalSince1970: domain.lowerBound)))
+        var t = ((domain.lowerBound + offset) / step).rounded(.up) * step - offset
+        var out: [Double] = []
+        while t <= domain.upperBound {
+            out.append(t)
+            t += step
+        }
+        return out
+    }
+}
+
+/// A y-axis range that hugs the data and ends on round numbers, with about `intervals` gridline steps.
+public enum NiceScale {
+    public struct Scale: Equatable, Sendable {
+        public var lower: Double
+        public var upper: Double
+        public var step: Double
+        public var ticks: [Double] { Swift.stride(from: lower, through: upper + step / 2, by: step).map { $0 } }
+    }
+
+    public static func scale(min: Double, max: Double, includesZero: Bool, intervals: Int = 3) -> Scale {
+        var lo = includesZero ? Swift.min(0, min) : min
+        var hi = Swift.max(max, lo + 1)
+        let step = nice((hi - lo) / Double(intervals))
+        lo = (lo / step).rounded(.down) * step
+        hi = (hi / step).rounded(.up) * step
+        return Scale(lower: lo, upper: hi, step: step)
+    }
+
+    /// The smallest of 1, 2, 2.5, 5 (times a power of ten) that is at least `raw`.
+    static func nice(_ raw: Double) -> Double {
+        let magnitude = pow(10, (log10(raw)).rounded(.down))
+        return [1, 2, 2.5, 5, 10].map { $0 * magnitude }.first { $0 >= raw - 1e-9 } ?? 10 * magnitude
     }
 }

@@ -3,6 +3,7 @@ import ThermalCore
 
 struct LoadTestView: View {
     let model: AppModel
+    @State private var hover = ChartHover()
 
     var body: some View {
         let test = model.loadTest
@@ -48,7 +49,7 @@ struct LoadTestView: View {
         let start = run?.startedAt ?? Date().timeIntervalSince1970
         let planned = run?.plannedSeconds ?? 1
         let samples = model.monitor.recent.filter { $0.timestamp >= start }
-        let built = ChartBuilder.build(samples, bucket: 1, peaks: model.monitor.currentPeaks)
+        let built = ChartBuilder.build(samples, bucket: 2, peaks: model.monitor.currentPeaks)
         let domain = start...(start + planned)
         HStack {
             Text("Running \(run?.kind.label ?? "") load").font(.headline)
@@ -58,9 +59,14 @@ struct LoadTestView: View {
         }
         ProgressView(value: min(1, (run?.elapsed ?? 0) / planned))
         ClockLane(bands: built.bands, domain: domain)
-        MetricChart(title: "Clocks", unit: "% of peak", series: built.clocks, bands: built.bands, domain: domain)
-        MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain)
-        MetricChart(title: "Power", unit: "W", series: built.power, bands: built.bands, domain: domain)
+        Group {
+            MetricChart(title: "Clocks", unit: "%", series: built.clocks, bands: built.bands, domain: domain,
+                        note: "% of reference peak", showsTimeLabels: false)
+            MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain,
+                        showsTimeLabels: false, includesZero: false)
+            MetricChart(title: "Power", unit: "W", series: built.power, bands: built.bands, domain: domain)
+        }
+        .environment(hover)
     }
 }
 

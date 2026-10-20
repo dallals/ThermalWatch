@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct MainWindowView: View {
     let model: AppModel
     @State private var data = WindowData()
+    @State private var hover = ChartHover()
 
     var body: some View {
         let built = data.built
@@ -33,19 +34,20 @@ struct MainWindowView: View {
             }
             HStack(alignment: .top, spacing: 14) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 16) {
                         ClockLane(bands: built.bands, domain: domain)
-                        MetricChart(title: "Clocks", unit: "% of peak", series: built.clocks, bands: built.bands, domain: domain, range: data.range,
-                                    note: unavailable.contains("clocks") ? "Clock data unavailable" : "% of reference peak")
-                        MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain, range: data.range,
-                                    note: unavailable.contains("temps") ? "Temperature data unavailable" : nil)
-                        MetricChart(title: "Fans", unit: "rpm", series: built.fans, bands: built.bands, domain: domain, range: data.range, height: 60,
-                                    note: unavailable.contains("fans") ? "Fan data unavailable" : nil)
-                        MetricChart(title: "Power", unit: "W", series: built.power, bands: built.bands, domain: domain, range: data.range,
-                                    note: unavailable.contains("power") ? "Power data unavailable" : nil)
-                        MetricChart(title: "oMLX tokens/sec", unit: "tok/s", series: built.tokens, bands: built.bands, domain: domain, range: data.range,
+                        MetricChart(title: "Clocks", unit: "%", series: built.clocks, bands: built.bands, domain: domain,
+                                    note: unavailable.contains("clocks") ? "Clock data unavailable" : "% of reference peak", showsTimeLabels: false)
+                        MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain,
+                                    note: unavailable.contains("temps") ? "Temperature data unavailable" : nil, showsTimeLabels: false, includesZero: false)
+                        MetricChart(title: "Fans", unit: "rpm", series: built.fans, bands: built.bands, domain: domain, height: 60,
+                                    note: unavailable.contains("fans") ? "Fan data unavailable" : nil, showsTimeLabels: false)
+                        MetricChart(title: "Power", unit: "W", series: built.power, bands: built.bands, domain: domain,
+                                    note: unavailable.contains("power") ? "Power data unavailable" : nil, showsTimeLabels: false)
+                        MetricChart(title: "oMLX speed", unit: "tok/s", series: built.tokens, bands: built.bands, domain: domain, height: 90,
                                     note: unavailable.contains("tokens") ? "oMLX not reachable" : nil)
                     }
+                    .environment(hover)
                     .padding(.trailing, 6)
                 }
                 EventsList(events: data.events) { data.center(on: $0) }
