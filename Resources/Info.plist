@@ -8,6 +8,8 @@
     <string>ThermalWatch</string>
     <key>CFBundleDisplayName</key>
     <string>ThermalWatch</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleExecutable</key>
     <string>ThermalWatch</string>
     <key>CFBundlePackageType</key>

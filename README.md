@@ -1,4 +1,4 @@
-# ThermalWatch
+# <img src="docs/images/app-icon.png" width="64" alt="" align="center"> ThermalWatch
 
 A macOS menu-bar app that shows when your Apple Silicon Mac is being thermally throttled, and how much it is costing you.
 
@@ -135,6 +135,7 @@ History is stored in SQLite at `~/Library/Application Support/ThermalWatch/histo
 | `ThermalLoad` | CPU and Metal GPU load generators for the load test |
 | `ThermalWatchApp` | SwiftUI menu-bar app, charts, settings and load-test UI |
 | `ThermalProbe` | `thermalwatch-probe` command-line tool: sensor check and history reclassification |
+| `scripts/make-icon.swift` | Draws the app icon (a chip whose die shows a temperature line climbing from cool to hot) and writes `Resources/AppIcon.icns` |
 
 The design spec and implementation plan are in [`docs/`](docs/).
 

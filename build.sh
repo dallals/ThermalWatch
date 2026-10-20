@@ -16,9 +16,10 @@ BIN_DIR="$(arch -arm64 swift build -c release --package-path "$ROOT" --show-bin-
 
 STAGE="$ROOT/.build/ThermalWatch.app"
 rm -rf "$STAGE"
-mkdir -p "$STAGE/Contents/MacOS"
+mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "$BIN_DIR/ThermalWatch" "$STAGE/Contents/MacOS/ThermalWatch"
 cp "$ROOT/Resources/Info.plist" "$STAGE/Contents/Info.plist"
+cp "$ROOT/Resources/AppIcon.icns" "$STAGE/Contents/Resources/AppIcon.icns"
 
 # A stable self-signed identity keeps notification permission across rebuilds.
 IDENTITY="-"
