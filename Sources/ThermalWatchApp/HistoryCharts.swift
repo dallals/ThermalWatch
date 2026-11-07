@@ -83,6 +83,8 @@ struct MetricChart: View {
     var showsTimeLabels = true
     /// False for readings like temperature, where zero isn't a meaningful baseline.
     var includesZero = true
+    /// The scale never tops out below this, so the clock charts keep 100% in view while idle.
+    var minimumTop: Double = 0
 
     @Environment(ChartHover.self) private var hover: ChartHover?
     @Environment(\.colorScheme) private var colorScheme
@@ -91,7 +93,7 @@ struct MetricChart: View {
     private var yScale: NiceScale.Scale {
         let points = series.flatMap(\.points)
         let lows = points.map { $0.min }, highs = points.map { $0.max }
-        return NiceScale.scale(min: lows.min() ?? 0, max: highs.max() ?? 0, includesZero: includesZero)
+        return NiceScale.scale(min: lows.min() ?? 0, max: Swift.max(highs.max() ?? 0, minimumTop), includesZero: includesZero)
     }
 
     private var hoverTime: Double? {

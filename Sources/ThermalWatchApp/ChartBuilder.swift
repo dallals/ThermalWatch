@@ -25,13 +25,14 @@ struct ChartSeries: Identifiable {
 
 enum ChartBuilder {
     struct Built {
-        var clocks: [ChartSeries]
+        var cpuClocks: [ChartSeries]
+        var gpuClocks: [ChartSeries]
         var temps: [ChartSeries]
         var fans: [ChartSeries]
         var power: [ChartSeries]
         var tokens: [ChartSeries]
         var bands: [StateBand]
-        static let empty = Built(clocks: [], temps: [], fans: [], power: [], tokens: [], bands: [])
+        static let empty = Built(cpuClocks: [], gpuClocks: [], temps: [], fans: [], power: [], tokens: [], bands: [])
     }
 
     /// `samples` sorted by time. Clocks are drawn as % of each cluster's reference peak. Throttle bands
@@ -49,8 +50,8 @@ enum ChartBuilder {
         // History recorded before negative readings were filtered can still hold one.
         func watts(_ value: Double?) -> Double? { value.flatMap { $0 >= 0 ? $0 : nil } }
         return Built(
-            clocks: [series("Super", SeriesColor.superCores, percent(.superCores)), series("Perf", SeriesColor.cpu, percent(.performance)),
-                     series("GPU", SeriesColor.gpu, percent(.gpu))],
+            cpuClocks: [series("Super", SeriesColor.superCores, percent(.superCores)), series("Perf", SeriesColor.cpu, percent(.performance))],
+            gpuClocks: [series("GPU", SeriesColor.gpu, percent(.gpu))],
             temps: [series("CPU", SeriesColor.cpu, { $0.cpuTempC }), series("GPU", SeriesColor.gpu, { $0.gpuTempC })],
             fans: [series("Fans", SeriesColor.neutral, { $0.fanRPM.max() })],
             power: [series("System", SeriesColor.neutral, style: .area, { watts($0.systemWatts) }), series("CPU", SeriesColor.cpu, { watts($0.cpuWatts) }),

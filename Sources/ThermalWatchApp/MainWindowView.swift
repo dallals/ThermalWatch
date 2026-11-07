@@ -36,8 +36,10 @@ struct MainWindowView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         ClockLane(bands: built.bands, domain: domain)
-                        MetricChart(title: "Clocks", unit: "%", series: built.clocks, bands: built.bands, domain: domain,
-                                    note: unavailable.contains("clocks") ? "Clock data unavailable" : "% of reference peak", showsTimeLabels: false)
+                        MetricChart(title: "CPU clocks", unit: "%", series: built.cpuClocks, bands: built.bands, domain: domain,
+                                    note: unavailable.contains("clocks") ? "Clock data unavailable" : "% of reference peak", showsTimeLabels: false, minimumTop: 100)
+                        MetricChart(title: "GPU clock", unit: "%", series: built.gpuClocks, bands: built.bands, domain: domain, height: 90,
+                                    note: unavailable.contains("clocks") ? "Clock data unavailable" : "% of reference peak", showsTimeLabels: false, minimumTop: 100)
                         MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain,
                                     note: unavailable.contains("temps") ? "Temperature data unavailable" : nil, showsTimeLabels: false, includesZero: false)
                         MetricChart(title: "Fans", unit: "rpm", series: built.fans, bands: built.bands, domain: domain, height: 60,

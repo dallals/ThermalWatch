@@ -20,7 +20,7 @@ Everything runs locally. No `sudo`, no helper daemon, no network access beyond a
 
 - **Always-on glance** — a chip icon in the menu bar with a colored dot (green / yellow / orange / red). Optionally shows the hottest die temperature next to it.
 - **Popover** — current state, thermal pressure, clock speed of each core group and the GPU as a share of peak, CPU/GPU temperatures, fan speeds, system power, oMLX tokens/sec, a 10-minute sparkline, and time throttled today.
-- **History window** — charts for clocks, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. The charts share one time axis along the bottom; pointing at any of them draws a crosshair through all of them, and each chart's legend shows the values at that moment (the latest values otherwise). Each line is the average over a short bucket (2 s at 10 minutes, up to 30 min at 7 days), with the bucket's low-to-high range as a faint band behind it. Chart lines break where there is no data (oMLX idle, ThermalWatch not running) instead of drawing straight across the gap. Clicking an event moves the charts to it. Each event shows:
+- **History window** — charts for CPU clocks, GPU clock, temperatures, fans, power and tokens/sec over 10 minutes up to 7 days, with throttled stretches shaded on every chart, a list of throttle events, and CSV export. The charts share one time axis along the bottom; pointing at any of them draws a crosshair through all of them, and each chart's legend shows the values at that moment (the latest values otherwise). Each line is the average over a short bucket (2 s at 10 minutes, up to 30 min at 7 days), with the bucket's low-to-high range as a faint band behind it. Chart lines break where there is no data (oMLX idle, ThermalWatch not running) instead of drawing straight across the gap. Clicking an event moves the charts to it. Each event shows:
   - its start, duration and worst pressure level;
   - the part that slowed most, with its typical drop (the median over its busy seconds) beside its single worst second, e.g. "Heavy · GPU −58% typical, −77% worst";
   - when oMLX was generating, tokens/sec in the minute before the event against during it, e.g. "41 → 29 tok/s, −29%". Each side needs at least 5 readings, so a reply that starts mid-event shows no comparison.
@@ -62,7 +62,7 @@ The same colors are used for the menu-bar dot and the shaded bands on the charts
 
 Chart lines use their own colors, the same on every chart: blue for the CPU (and its Performance cores), pink for the Super cores, green for the GPU, purple for oMLX tokens/sec. System power is the gray fill behind the CPU and GPU lines.
 
-On the Clocks chart, 100% is peak speed. A line dropping *while that part is busy* is throttling; dips while idle are just the chip saving power.
+On the CPU clocks and GPU clock charts, 100% is peak speed. A line dropping *while that part is busy* is throttling; dips while idle are just the chip saving power.
 
 ## Where the numbers come from
 

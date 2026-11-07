@@ -60,8 +60,10 @@ struct LoadTestView: View {
         ProgressView(value: min(1, (run?.elapsed ?? 0) / planned))
         ClockLane(bands: built.bands, domain: domain)
         Group {
-            MetricChart(title: "Clocks", unit: "%", series: built.clocks, bands: built.bands, domain: domain,
-                        note: "% of reference peak", showsTimeLabels: false)
+            MetricChart(title: "CPU clocks", unit: "%", series: built.cpuClocks, bands: built.bands, domain: domain,
+                        note: "% of reference peak", showsTimeLabels: false, minimumTop: 100)
+            MetricChart(title: "GPU clock", unit: "%", series: built.gpuClocks, bands: built.bands, domain: domain, height: 90,
+                        note: "% of reference peak", showsTimeLabels: false, minimumTop: 100)
             MetricChart(title: "Temperatures", unit: "°C", series: built.temps, bands: built.bands, domain: domain,
                         showsTimeLabels: false, includesZero: false)
             MetricChart(title: "Power", unit: "W", series: built.power, bands: built.bands, domain: domain)
